@@ -1,13 +1,15 @@
 import discord
 from discord.ext import commands
 import os
-import asyncio
 
 intents = discord.Intents.default()
 intents.members = True 
 intents.message_content = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
+
+# La GIF che funzionava (usiamola per tutto)
+GIF_URL = "https://media2.giphy.com/media/v1.Y2lkPTZjMDliOTUyazJweXM1eGZiNWtmb3ZycDN6b3kyMHlydmhtd3lxNjUxcTc4czhtZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/2ZpkYucNiZpovyuMkf/giphy.gif"
 
 @bot.event
 async def on_ready():
@@ -22,7 +24,7 @@ async def on_member_join(member):
             description=f'Hey {member.mention}, welcome to the ring! Get ready to fight!',
             color=discord.Color.red()
         )
-        embed.set_image(url="https://c.tenor.com/tXFv497uQ5sAAAAC/ashitano-joe-joe-yabuki.gif")
+        embed.set_image(url=GIF_URL)
         await channel.send(content=f'New challenger: {member.mention}', embed=embed)
 
 @bot.event
@@ -34,10 +36,7 @@ async def on_member_remove(member):
             description=f'{member.name} has left the ring. See you next time!',
             color=discord.Color.dark_grey()
         )
-        # Questa è una GIF di Joe che se ne va, molto stabile
-        embed.set_image(url="https://c.tenor.com/2s787LqG9_IAAAAC/joe-yabuki-ashita-no-joe.gif")
-        
-        await asyncio.sleep(1)
+        embed.set_image(url=GIF_URL)
         await channel.send(embed=embed)
 
 bot.run(os.environ['TOKEN'])
