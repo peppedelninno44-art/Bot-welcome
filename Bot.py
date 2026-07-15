@@ -14,7 +14,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 async def on_ready():
     print(f'Bot is online as {bot.user}')
 
-# Welcome message
+# Welcome message (lasciamo come prima)
 @bot.event
 async def on_member_join(member):
     channel = bot.get_channel(1516927038794240161)
@@ -24,25 +24,17 @@ async def on_member_join(member):
             description=f'Hey {member.mention}, welcome to the ring! Get ready to fight!',
             color=discord.Color.red()
         )
-        # La TUA gif di ingresso
         embed.set_image(url="https://media2.giphy.com/media/v1.Y2lkPTZjMDliOTUyazJweXM1eGZiNWtmb3ZycDN6b3kyMHlydmhtd3lxNjUxcTc4czhtZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/2ZpkYucNiZpovyuMkf/giphy.gif")
         await channel.send(content=f'New challenger: {member.mention}', embed=embed)
 
-# Goodbye message
+# Goodbye message (MODIFICATO: invio come file per evitare blocchi)
 @bot.event
 async def on_member_remove(member):
     channel = bot.get_channel(1516927038794240161)
     if channel:
-        embed = discord.Embed(
-            title="Challenger retired",
-            description=f'{member.name} has left the ring. See you next time!',
-            color=discord.Color.dark_grey()
-        )
-        # La gif TRISTE di Joe per l'uscita
-        embed.set_image(url="https://i.giphy.com/media/v1.Y2lkPTc5MGI3NjExMjExNDMwJnc9YyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7TKMGpxxHOGTdzJC/giphy.gif")
-        
-        await asyncio.sleep(1)
-        await channel.send(embed=embed)
+        # Messaggio di testo invece di Embed per l'immagine
+        await channel.send(f'Challenger retired: {member.name} has left the ring. See you next time!')
+        # Invio diretto della GIF come file
+        await channel.send("https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExMjExNDMwJnc9YyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7TKMGpxxHOGTdzJC/giphy.gif")
 
-# Token dalla variabile di ambiente
 bot.run(os.environ['TOKEN'])
