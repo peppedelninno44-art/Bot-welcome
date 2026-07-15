@@ -23,7 +23,7 @@ async def on_member_join(member):
             description=f'Hey {member.mention}, welcome to the ring! Get ready to fight!',
             color=discord.Color.red()
         )
-        # GIF di Benvenuto aggiornata
+        # GIF di Ingresso (quella che hai scelto tu)
         embed.set_image(url="https://media2.giphy.com/media/v1.Y2lkPTZjMDliOTUyazJweXM1eGZiNWtmb3ZycDN6b3kyMHlydmhtd3lxNjUxcTc4czhtZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/2ZpkYucNiZpovyuMkf/giphy.gif")
         await channel.send(content=f'New challenger: {member.mention}', embed=embed)
 
@@ -37,9 +37,10 @@ async def on_member_remove(member):
             description=f'{member.name} has left the ring. See you next time!',
             color=discord.Color.dark_grey()
         )
-        # GIF di Uscita
-        embed.set_image(url="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExMjExNDMwJnc9YyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/26AHtn0v1Qo78o1qE/giphy.gif")
+        # GIF di Uscita (nuova, testata e funzionante)
+        embed.set_image(url="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExMjExNDMwJnc9YyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3og0IuwwNmAIVYJ9fy/giphy.gif")
         await channel.send(embed=embed)
 
 # Token dalla variabile di ambiente
 bot.run(os.environ['TOKEN'])
+
