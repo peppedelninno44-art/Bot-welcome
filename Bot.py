@@ -87,6 +87,133 @@ async def upload_gif(interaction: discord.Interaction, attachment: discord.Attac
         return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
     
     await interaction.response.defer(ephemeral=True)
-    # Restituisce il link diretto del file caricato su Discord
-    await interaction.followup.send(f"✅ Here is your direct URL:\n```{attachment.url}
+    await interaction.followup.send(f"✅ Here is your direct URL:\n`{attachment.url}`", ephemeral=True)
+
+@bot.tree.command(name="set_welcome_channel", description="Set the welcome messages channel")
+@app_commands.describe(channel="The channel where welcome messages will be sent")
+async def set_welcome_channel(interaction: discord.Interaction, channel: discord.TextChannel):
+    if interaction.user.id not in ADMIN_IDS:
+        return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
+    await interaction.response.defer(ephemeral=True)
+    update_server_config(interaction.guild.id, "welcome_channel", channel.id)
+    await interaction.followup.send(f"✅ Welcome channel set to {channel.mention}", ephemeral=True)
+
+@bot.tree.command(name="set_welcome_title", description="Set the welcome message title")
+@app_commands.describe(title="The title (you can use {user} and {server})")
+async def set_welcome_title(interaction: discord.Interaction, title: str):
+    if interaction.user.id not in ADMIN_IDS:
+        return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
+    await interaction.response.defer(ephemeral=True)
+    update_server_config(interaction.guild.id, "welcome_title", title)
+    await interaction.followup.send(f"✅ Welcome title updated!", ephemeral=True)
+
+@bot.tree.command(name="set_welcome_message", description="Set the welcome message text")
+@app_commands.describe(message="The text (you can use {user} and {server})")
+async def set_welcome_message(interaction: discord.Interaction, message: str):
+    if interaction.user.id not in ADMIN_IDS:
+        return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
+    await interaction.response.defer(ephemeral=True)
+    update_server_config(interaction.guild.id, "welcome_message", message)
+    await interaction.followup.send(f"✅ Welcome message updated!", ephemeral=True)
+
+@bot.tree.command(name="set_welcome_gif", description="Set the welcome GIF/image link")
+@app_commands.describe(url="Direct link of the GIF or image")
+async def set_welcome_gif(interaction: discord.Interaction, url: str):
+    if interaction.user.id not in ADMIN_IDS:
+        return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
+    await interaction.response.defer(ephemeral=True)
+    update_server_config(interaction.guild.id, "welcome_gif", url)
+    await interaction.followup.send(f"✅ Welcome GIF updated!", ephemeral=True)
+
+@bot.tree.command(name="set_goodbye_channel", description="Set the goodbye messages channel")
+@app_commands.describe(channel="The channel where goodbye messages will be sent")
+async def set_goodbye_channel(interaction: discord.Interaction, channel: discord.TextChannel):
+    if interaction.user.id not in ADMIN_IDS:
+        return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
+    await interaction.response.defer(ephemeral=True)
+    update_server_config(interaction.guild.id, "goodbye_channel", channel.id)
+    await interaction.followup.send(f"✅ Goodbye channel set to {channel.mention}", ephemeral=True)
+
+@bot.tree.command(name="set_goodbye_title", description="Set the goodbye message title")
+@app_commands.describe(title="The title (you can use {user} and {server})")
+async def set_goodbye_title(interaction: discord.Interaction, title: str):
+    if interaction.user.id not in ADMIN_IDS:
+        return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
+    await interaction.response.defer(ephemeral=True)
+    update_server_config(interaction.guild.id, "goodbye_title", title)
+    await interaction.followup.send(f"✅ Goodbye title updated!", ephemeral=True)
+
+@bot.tree.command(name="set_goodbye_message", description="Set the goodbye message text")
+@app_commands.describe(message="The text (you can use {user} and {server})")
+async def set_goodbye_message(interaction: discord.Interaction, message: str):
+    if interaction.user.id not in ADMIN_IDS:
+        return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
+    await interaction.response.defer(ephemeral=True)
+    update_server_config(interaction.guild.id, "goodbye_message", message)
+    await interaction.followup.send(f"✅ Goodbye message updated!", ephemeral=True)
+
+@bot.tree.command(name="set_goodbye_gif", description="Set the goodbye GIF/image link")
+@app_commands.describe(url="Direct link of the GIF or image")
+async def set_goodbye_gif(interaction: discord.Interaction, url: str):
+    if interaction.user.id not in ADMIN_IDS:
+        return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
+    await interaction.response.defer(ephemeral=True)
+    update_server_config(interaction.guild.id, "goodbye_gif", url)
+    await interaction.followup.send(f"✅ Goodbye GIF updated!", ephemeral=True)
+
+@bot.tree.command(name="test", description="Test welcome or goodbye messages")
+@app_commands.describe(tipo="Choose whether to test welcome or goodbye")
+@app_commands.choices(tipo=[
+    app_commands.Choice(name="welcome", value="welcome"),
+    app_commands.Choice(name="goodbye", value="goodbye")
+])
+async def test_command(interaction: discord.Interaction, tipo: str):
+    if interaction.user.id not in ADMIN_IDS:
+        return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
+    
+    await interaction.response.defer(ephemeral=True)
+    conf = get_server_config(interaction.guild.id)
+    
+    if tipo == "welcome":
+        channel_id = conf["welcome_channel"]
+        if not channel_id:
+            return await interaction.followup.send("❌ You must set a welcome channel first using `/set_welcome_channel`!", ephemeral=True)
+        
+        channel = interaction.guild.get_channel(int(channel_id))
+        if not channel:
+            return await interaction.followup.send("❌ The configured welcome channel no longer exists!", ephemeral=True)
+            
+        title = conf["welcome_title"].replace("{user}", interaction.user.name).replace("{server}", interaction.guild.name)
+        desc = conf["welcome_message"].replace("{user}", interaction.user.mention).replace("{server}", interaction.guild.name)
+        
+        embed = discord.Embed(title=title, description=desc, color=discord.Color.green())
+        embed.set_image(url=conf["welcome_gif"])
+        
+        await channel.send(embed=embed)
+        await interaction.followup.send("✅ Welcome test sent successfully to the configured channel!", ephemeral=True)
+
+    elif tipo == "goodbye":
+        channel_id = conf["goodbye_channel"]
+        if not channel_id:
+            return await interaction.followup.send("❌ You must set a goodbye channel first using `/set_goodbye_channel`!", ephemeral=True)
+        
+        channel = interaction.guild.get_channel(int(channel_id))
+        if not channel:
+            return await interaction.followup.send("❌ The configured goodbye channel no longer exists!", ephemeral=True)
+            
+        title = conf["goodbye_title"].replace("{user}", interaction.user.name).replace("{server}", interaction.guild.name)
+        desc = conf["goodbye_message"].replace("{user}", interaction.user.name).replace("{server}", interaction.guild.name)
+        
+        embed = discord.Embed(title=title, description=desc, color=discord.Color.red())
+        embed.set_image(url=conf["goodbye_gif"])
+        
+        await channel.send(embed=embed)
+        await interaction.followup.send("✅ Goodbye test sent successfully to the configured channel!", ephemeral=True)
+
+@bot.event
+async def on_ready():
+    await bot.tree.sync()
+    print(f'Bot online as {bot.user} and commands synced!')
+
+bot.run(os.environ['TOKEN'])
     
