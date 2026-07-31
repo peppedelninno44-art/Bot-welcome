@@ -90,7 +90,7 @@ async def upload_gif(interaction: discord.Interaction, attachment: discord.Attac
     await interaction.followup.send(f"✅ Here is your direct URL:\n`{attachment.url}`", ephemeral=True)
 
 @bot.tree.command(name="set_welcome_channel", description="Set the welcome messages channel")
-@app_commands.describe(channel="The channel where welcome messages will be sent")
+@app_commands.describe(channel="Mention the channel (e.g. #general)")
 async def set_welcome_channel(interaction: discord.Interaction, channel: discord.TextChannel):
     if interaction.user.id not in ADMIN_IDS:
         return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
@@ -126,7 +126,7 @@ async def set_welcome_gif(interaction: discord.Interaction, url: str):
     await interaction.followup.send(f"✅ Welcome GIF updated!", ephemeral=True)
 
 @bot.tree.command(name="set_goodbye_channel", description="Set the goodbye messages channel")
-@app_commands.describe(channel="The channel where goodbye messages will be sent")
+@app_commands.describe(channel="Mention the channel (e.g. #general)")
 async def set_goodbye_channel(interaction: discord.Interaction, channel: discord.TextChannel):
     if interaction.user.id not in ADMIN_IDS:
         return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
@@ -212,8 +212,8 @@ async def test_command(interaction: discord.Interaction, tipo: str):
 
 @bot.event
 async def on_ready():
+    bot.tree.clear_commands(guild=None)
     await bot.tree.sync()
-    print(f'Bot online as {bot.user} and global commands synced!')
+    print(f'Bot online as {bot.user} and commands completely resynced!')
 
 bot.run(os.environ['TOKEN'])
-            
