@@ -90,13 +90,20 @@ async def upload_gif(interaction: discord.Interaction, attachment: discord.Attac
     await interaction.followup.send(f"✅ Here is your direct URL:\n`{attachment.url}`", ephemeral=True)
 
 @bot.tree.command(name="set_welcome_channel", description="Set the welcome messages channel")
-@app_commands.describe(channel="Mention the channel (e.g. #general)")
-async def set_welcome_channel(interaction: discord.Interaction, channel: discord.TextChannel):
+@app_commands.describe(channel="Tag the channel (e.g. #general) or paste its ID")
+async def set_welcome_channel(interaction: discord.Interaction, channel: str):
     if interaction.user.id not in ADMIN_IDS:
         return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
+    
     await interaction.response.defer(ephemeral=True)
-    update_server_config(interaction.guild.id, "welcome_channel", channel.id)
-    await interaction.followup.send(f"✅ Welcome channel set to {channel.mention}", ephemeral=True)
+    
+    # Estrae l'ID pulito sia se l'utente mette la menzione sia se mette l'ID diretto
+    clean_id = channel.replace("<#", "").replace(">", "")
+    if not clean_id.isdigit():
+        return await interaction.followup.send("❌ Please tag a valid channel like #general!", ephemeral=True)
+        
+    update_server_config(interaction.guild.id, "welcome_channel", int(clean_id))
+    await interaction.followup.send(f"✅ Welcome channel successfully updated!", ephemeral=True)
 
 @bot.tree.command(name="set_welcome_title", description="Set the welcome message title")
 @app_commands.describe(title="The title (you can use {user} and {server})")
@@ -126,13 +133,19 @@ async def set_welcome_gif(interaction: discord.Interaction, url: str):
     await interaction.followup.send(f"✅ Welcome GIF updated!", ephemeral=True)
 
 @bot.tree.command(name="set_goodbye_channel", description="Set the goodbye messages channel")
-@app_commands.describe(channel="Mention the channel (e.g. #general)")
-async def set_goodbye_channel(interaction: discord.Interaction, channel: discord.TextChannel):
+@app_commands.describe(channel="Tag the channel (e.g. #general) or paste its ID")
+async def set_goodbye_channel(interaction: discord.Interaction, channel: str):
     if interaction.user.id not in ADMIN_IDS:
         return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
+    
     await interaction.response.defer(ephemeral=True)
-    update_server_config(interaction.guild.id, "goodbye_channel", channel.id)
-    await interaction.followup.send(f"✅ Goodbye channel set to {channel.mention}", ephemeral=True)
+    
+    clean_id = channel.replace("<#", "").replace(">", "")
+    if not clean_id.isdigit():
+        return await interaction.followup.send("❌ Please tag a valid channel like #general!", ephemeral=True)
+        
+    update_server_config(interaction.guild.id, "goodbye_channel", int(clean_id))
+    await interaction.followup.send(f"✅ Goodbye channel successfully updated!", ephemeral=True)
 
 @bot.tree.command(name="set_goodbye_title", description="Set the goodbye message title")
 @app_commands.describe(title="The title (you can use {user} and {server})")
@@ -212,8 +225,7 @@ async def test_command(interaction: discord.Interaction, tipo: str):
 
 @bot.event
 async def on_ready():
-    bot.tree.clear_commands(guild=None)
     await bot.tree.sync()
-    print(f'Bot online as {bot.user} and commands completely resynced!')
+    print(f'Bot online as {bot.user} and commands synced!')
 
 bot.run(os.environ['TOKEN'])
