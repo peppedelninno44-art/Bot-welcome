@@ -32,11 +32,11 @@ def get_server_config(guild_id):
             "welcome_channel": None,
             "welcome_title": "Welcome to {server}!",
             "welcome_message": "Hey {user}, welcome to the server! Make yourself comfortable.",
-            "welcome_gif": "https://media.tenor.com/w2Yv2U6r3UAAAAAm/stephen-curry-curry.gif",
+            "welcome_gif": "https://media.tenor.com/O-qwey8pT-YAAAAi/win-lebron-james.gif",
             "goodbye_channel": None,
             "goodbye_title": "Goodbye from {server}",
             "goodbye_message": "{user} has left the server. Hope to see you again soon!",
-            "goodbye_gif": "https://media.tenor.com/w2Yv2U6r3UAAAAAm/stephen-curry-curry.gif"
+            "goodbye_gif": "https://media.tenor.com/O-qwey8pT-YAAAAi/win-lebron-james.gif"
         }
         save_config(config)
     return config[str_id]
@@ -174,6 +174,7 @@ async def test_command(interaction: discord.Interaction, tipo: str):
     if interaction.user.id not in ADMIN_IDS:
         return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
     
+    # Previene il blocco dei 3 secondi di Discord
     await interaction.response.defer(ephemeral=True)
     conf = get_server_config(interaction.guild.id)
     
