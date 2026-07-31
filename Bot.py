@@ -32,11 +32,11 @@ def get_server_config(guild_id):
             "welcome_channel": None,
             "welcome_title": "Welcome to {server}!",
             "welcome_message": "Hey {user}, welcome to the server! Make yourself comfortable.",
-            "welcome_gif": "https://media.tenor.com/O-qwey8pT-YAAAAi/win-lebron-james.gif",
+            "welcome_gif": "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExbWV4ZjQyZWN0ZWp0djdvZG8ydWphNW1kMW50aGlnbXp6OXNoaHhiayZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oKIPnAiaMCws8nOsE/giphy.gif",
             "goodbye_channel": None,
             "goodbye_title": "Goodbye from {server}",
             "goodbye_message": "{user} has left the server. Hope to see you again soon!",
-            "goodbye_gif": "https://media.tenor.com/O-qwey8pT-YAAAAi/win-lebron-james.gif"
+            "goodbye_gif": "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExbWV4ZjQyZWN0ZWp0djdvZG8ydWphNW1kMW50aGlnbXp6OXNoaHhiayZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oKIPnAiaMCws8nOsE/giphy.gif"
         }
         save_config(config)
     return config[str_id]
@@ -53,33 +53,39 @@ def update_server_config(guild_id, key, value):
 # --- WELCOME / GOODBYE EVENTS ---
 @bot.event
 async def on_member_join(member):
-    conf = get_server_config(member.guild.id)
-    channel_id = conf["welcome_channel"]
-    if channel_id:
-        channel = member.guild.get_channel(int(channel_id))
-        if channel:
-            title = conf["welcome_title"].replace("{user}", member.name).replace("{server}", member.guild.name)
-            desc = conf["welcome_message"].replace("{user}", member.mention).replace("{server}", member.guild.name)
-            
-            embed = discord.Embed(title=title, description=desc, color=discord.Color.green())
-            if conf["welcome_gif"]:
-                embed.set_image(url=conf["welcome_gif"])
-            await channel.send(embed=embed)
+    try:
+        conf = get_server_config(member.guild.id)
+        channel_id = conf.get("welcome_channel")
+        if channel_id:
+            channel = member.guild.get_channel(int(channel_id))
+            if channel:
+                title = conf["welcome_title"].replace("{user}", member.name).replace("{server}", member.guild.name)
+                desc = conf["welcome_message"].replace("{user}", member.mention).replace("{server}", member.guild.name)
+                
+                embed = discord.Embed(title=title, description=desc, color=discord.Color.green())
+                if conf.get("welcome_gif"):
+                    embed.set_image(url=conf["welcome_gif"])
+                await channel.send(embed=embed)
+    except Exception as e:
+        print(f"Errore su on_member_join: {e}")
 
 @bot.event
 async def on_member_remove(member):
-    conf = get_server_config(member.guild.id)
-    channel_id = conf["goodbye_channel"]
-    if channel_id:
-        channel = member.guild.get_channel(int(channel_id))
-        if channel:
-            title = conf["goodbye_title"].replace("{user}", member.name).replace("{server}", member.guild.name)
-            desc = conf["goodbye_message"].replace("{user}", member.name).replace("{server}", member.guild.name)
-            
-            embed = discord.Embed(title=title, description=desc, color=discord.Color.red())
-            if conf["goodbye_gif"]:
-                embed.set_image(url=conf["goodbye_gif"])
-            await channel.send(embed=embed)
+    try:
+        conf = get_server_config(member.guild.id)
+        channel_id = conf.get("goodbye_channel")
+        if channel_id:
+            channel = member.guild.get_channel(int(channel_id))
+            if channel:
+                title = conf["goodbye_title"].replace("{user}", member.name).replace("{server}", member.guild.name)
+                desc = conf["goodbye_message"].replace("{user}", member.mention).replace("{server}", member.guild.name)
+                
+                embed = discord.Embed(title=title, description=desc, color=discord.Color.red())
+                if conf.get("goodbye_gif"):
+                    embed.set_image(url=conf["goodbye_gif"])
+                await channel.send(embed=embed)
+    except Exception as e:
+        print(f"Errore su on_member_remove: {e}")
 
 # --- CONFIGURATION SLASH COMMANDS ---
 @bot.tree.command(name="upload_gif", description="Upload an image/GIF and get its direct URL")
@@ -174,12 +180,11 @@ async def test_command(interaction: discord.Interaction, tipo: str):
     if interaction.user.id not in ADMIN_IDS:
         return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
     
-    # Previene il blocco dei 3 secondi di Discord
     await interaction.response.defer(ephemeral=True)
     conf = get_server_config(interaction.guild.id)
     
     if tipo == "welcome":
-        channel_id = conf["welcome_channel"]
+        channel_id = conf.get("welcome_channel")
         if not channel_id:
             return await interaction.followup.send("❌ You must set a welcome channel first using `/set_welcome_channel`!", ephemeral=True)
         
@@ -191,14 +196,14 @@ async def test_command(interaction: discord.Interaction, tipo: str):
         desc = conf["welcome_message"].replace("{user}", interaction.user.mention).replace("{server}", interaction.guild.name)
         
         embed = discord.Embed(title=title, description=desc, color=discord.Color.green())
-        if conf["welcome_gif"]:
+        if conf.get("welcome_gif"):
             embed.set_image(url=conf["welcome_gif"])
         
         await channel.send(embed=embed)
         await interaction.followup.send("✅ Welcome test sent successfully to the configured channel!", ephemeral=True)
 
     elif tipo == "goodbye":
-        channel_id = conf["goodbye_channel"]
+        channel_id = conf.get("goodbye_channel")
         if not channel_id:
             return await interaction.followup.send("❌ You must set a goodbye channel first using `/set_goodbye_channel`!", ephemeral=True)
         
@@ -207,10 +212,10 @@ async def test_command(interaction: discord.Interaction, tipo: str):
             return await interaction.followup.send("❌ The configured goodbye channel no longer exists!", ephemeral=True)
             
         title = conf["goodbye_title"].replace("{user}", interaction.user.name).replace("{server}", interaction.guild.name)
-        desc = conf["goodbye_message"].replace("{user}", interaction.user.name).replace("{server}", interaction.guild.name)
+        desc = conf["goodbye_message"].replace("{user}", interaction.mention).replace("{server}", interaction.guild.name)
         
         embed = discord.Embed(title=title, description=desc, color=discord.Color.red())
-        if conf["goodbye_gif"]:
+        if conf.get("goodbye_gif"):
             embed.set_image(url=conf["goodbye_gif"])
         
         await channel.send(embed=embed)
