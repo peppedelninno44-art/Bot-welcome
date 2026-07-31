@@ -4,20 +4,23 @@ from discord import app_commands
 import os
 import json
 
-# --- CONFIGURATION ---
+# --- CONFIGURAZIONE ---
 ADMIN_IDS = [1171135456306536450, 924641550133248000]
 CONFIG_FILE = "server_config.json"
-# ---------------------
+# ----------------------
 
 intents = discord.Intents.default()
 intents.message_content = True
-intents.members = True
+intents.members = True  # Fondamentale per i membri
 bot = commands.Bot(command_prefix='!', intents=intents)
 
 def load_config():
     if os.path.exists(CONFIG_FILE):
-        with open(CONFIG_FILE, "r") as f:
-            return json.load(f)
+        try:
+            with open(CONFIG_FILE, "r") as f:
+                return json.load(f)
+        except:
+            return {}
     return {}
 
 def save_config(config):
@@ -31,11 +34,11 @@ def get_server_config(guild_id):
         config[str_id] = {
             "welcome_channel": None,
             "welcome_title": "Welcome to {server}!",
-            "welcome_message": "Hey {user}, welcome to the server! Make yourself comfortable.",
+            "welcome_message": "Hey {user}, welcome to the server!",
             "welcome_gif": "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExbWV4ZjQyZWN0ZWp0djdvZG8ydWphNW1kMW50aGlnbXp6OXNoaHhiayZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oKIPnAiaMCws8nOsE/giphy.gif",
             "goodbye_channel": None,
             "goodbye_title": "Goodbye from {server}",
-            "goodbye_message": "{user} has left the server. Hope to see you again soon!",
+            "goodbye_message": "{user} has left the server.",
             "goodbye_gif": "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExbWV4ZjQyZWN0ZWp0djdvZG8ydWphNW1kMW50aGlnbXp6OXNoaHhiayZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oKIPnAiaMCws8nOsE/giphy.gif"
         }
         save_config(config)
@@ -50,14 +53,19 @@ def update_server_config(guild_id, key, value):
     config[str_id][key] = value
     save_config(config)
 
-# --- WELCOME / GOODBYE EVENTS ---
+# --- EVENTO DI BENVENUTO CON DEBUG ---
 @bot.event
 async def on_member_join(member):
+    print(f"DEBUG JOIN: {member.name} è entrato nel server {member.guild.name}!")
     try:
         conf = get_server_config(member.guild.id)
         channel_id = conf.get("welcome_channel")
+        print(f"DEBUG JOIN: Canale configurato -> {channel_id}")
+        
         if channel_id:
             channel = member.guild.get_channel(int(channel_id))
+            print(f"DEBUG JOIN: Canale trovato nel server -> {channel}")
+            
             if channel:
                 title = conf["welcome_title"].replace("{user}", member.name).replace("{server}", member.guild.name)
                 desc = conf["welcome_message"].replace("{user}", member.mention).replace("{server}", member.guild.name)
@@ -65,166 +73,112 @@ async def on_member_join(member):
                 embed = discord.Embed(title=title, description=desc, color=discord.Color.green())
                 if conf.get("welcome_gif"):
                     embed.set_image(url=conf["welcome_gif"])
+                
                 await channel.send(embed=embed)
+                print("DEBUG JOIN: Messaggio di benvenuto inviato con successo!")
     except Exception as e:
-        print(f"Errore su on_member_join: {e}")
+        print(f"ERRORE in on_member_join: {e}")
 
+# --- EVENTO DI ADDIO CON DEBUG ---
 @bot.event
 async def on_member_remove(member):
+    print(f"DEBUG REMOVE: {member.name} è uscito o è stato espulso da {member.guild.name}!")
     try:
         conf = get_server_config(member.guild.id)
         channel_id = conf.get("goodbye_channel")
+        print(f"DEBUG REMOVE: Canale addio configurato -> {channel_id}")
+        
         if channel_id:
             channel = member.guild.get_channel(int(channel_id))
+            print(f"DEBUG REMOVE: Canale trovato nel server -> {channel}")
+            
             if channel:
                 title = conf["goodbye_title"].replace("{user}", member.name).replace("{server}", member.guild.name)
-                desc = conf["goodbye_message"].replace("{user}", member.mention).replace("{server}", member.guild.name)
+                desc = conf["goodbye_message"].replace("{user}", member.name).replace("{server}", member.guild.name)
                 
                 embed = discord.Embed(title=title, description=desc, color=discord.Color.red())
                 if conf.get("goodbye_gif"):
                     embed.set_image(url=conf["goodbye_gif"])
+                
                 await channel.send(embed=embed)
+                print("DEBUG REMOVE: Messaggio di addio inviato con successo!")
     except Exception as e:
-        print(f"Errore su on_member_remove: {e}")
+        print(f"ERRORE in on_member_remove: {e}")
 
-# --- CONFIGURATION SLASH COMMANDS ---
-@bot.tree.command(name="upload_gif", description="Upload an image/GIF and get its direct URL")
-@app_commands.describe(attachment="Upload your GIF or image file here")
-async def upload_gif(interaction: discord.Interaction, attachment: discord.Attachment):
-    if interaction.user.id not in ADMIN_IDS:
-        return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
-    
-    await interaction.response.send_message(f"✅ Here is your direct URL:\n`{attachment.url}`", ephemeral=True)
-
-@bot.tree.command(name="set_welcome_channel", description="Set the welcome messages channel")
-@app_commands.describe(channel="Tag the channel (e.g. #general) or paste its ID")
+# --- COMANDI SLASH ---
+@bot.tree.command(name="set_welcome_channel", description="Imposta il canale di benvenuto")
 async def set_welcome_channel(interaction: discord.Interaction, channel: str):
     if interaction.user.id not in ADMIN_IDS:
-        return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
-    
+        return await interaction.response.send_message("Non hai i permessi!", ephemeral=True)
     clean_id = channel.replace("<#", "").replace(">", "")
     if not clean_id.isdigit():
-        return await interaction.response.send_message("❌ Please tag a valid channel like #general!", ephemeral=True)
-        
+        return await interaction.response.send_message("Tagga un canale valido!", ephemeral=True)
     update_server_config(interaction.guild.id, "welcome_channel", int(clean_id))
-    await interaction.response.send_message("✅ Welcome channel successfully updated!", ephemeral=True)
+    await interaction.response.send_message("✅ Canale di benvenuto impostato!", ephemeral=True)
 
-@bot.tree.command(name="set_welcome_title", description="Set the welcome message title")
-@app_commands.describe(title="The title (you can use {user} and {server})")
-async def set_welcome_title(interaction: discord.Interaction, title: str):
-    if interaction.user.id not in ADMIN_IDS:
-        return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
-    update_server_config(interaction.guild.id, "welcome_title", title)
-    await interaction.response.send_message("✅ Welcome title updated!", ephemeral=True)
-
-@bot.tree.command(name="set_welcome_message", description="Set the welcome message text")
-@app_commands.describe(message="The text (you can use {user} and {server})")
-async def set_welcome_message(interaction: discord.Interaction, message: str):
-    if interaction.user.id not in ADMIN_IDS:
-        return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
-    update_server_config(interaction.guild.id, "welcome_message", message)
-    await interaction.response.send_message("✅ Welcome message updated!", ephemeral=True)
-
-@bot.tree.command(name="set_welcome_gif", description="Set the welcome GIF/image link")
-@app_commands.describe(url="Direct link of the GIF or image")
-async def set_welcome_gif(interaction: discord.Interaction, url: str):
-    if interaction.user.id not in ADMIN_IDS:
-        return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
-    update_server_config(interaction.guild.id, "welcome_gif", url)
-    await interaction.response.send_message("✅ Welcome GIF updated!", ephemeral=True)
-
-@bot.tree.command(name="set_goodbye_channel", description="Set the goodbye messages channel")
-@app_commands.describe(channel="Tag the channel (e.g. #general) or paste its ID")
+@bot.tree.command(name="set_goodbye_channel", description="Imposta il canale di addio")
 async def set_goodbye_channel(interaction: discord.Interaction, channel: str):
     if interaction.user.id not in ADMIN_IDS:
-        return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
-    
+        return await interaction.response.send_message("Non hai i permessi!", ephemeral=True)
     clean_id = channel.replace("<#", "").replace(">", "")
     if not clean_id.isdigit():
-        return await interaction.response.send_message("❌ Please tag a valid channel like #general!", ephemeral=True)
-        
+        return await interaction.response.send_message("Tagga un canale valido!", ephemeral=True)
     update_server_config(interaction.guild.id, "goodbye_channel", int(clean_id))
-    await interaction.response.send_message("✅ Goodbye channel successfully updated!", ephemeral=True)
+    await interaction.response.send_message("✅ Canale di addio impostato!", ephemeral=True)
 
-@bot.tree.command(name="set_goodbye_title", description="Set the goodbye message title")
-@app_commands.describe(title="The title (you can use {user} and {server})")
-async def set_goodbye_title(interaction: discord.Interaction, title: str):
+@bot.tree.command(name="set_welcome_gif", description="Imposta la GIF di benvenuto")
+async def set_welcome_gif(interaction: discord.Interaction, url: str):
     if interaction.user.id not in ADMIN_IDS:
-        return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
-    update_server_config(interaction.guild.id, "goodbye_title", title)
-    await interaction.response.send_message("✅ Goodbye title updated!", ephemeral=True)
+        return await interaction.response.send_message("Non hai i permessi!", ephemeral=True)
+    update_server_config(interaction.guild.id, "welcome_gif", url)
+    await interaction.response.send_message("✅ GIF di benvenuto aggiornata!", ephemeral=True)
 
-@bot.tree.command(name="set_goodbye_message", description="Set the goodbye message text")
-@app_commands.describe(message="The text (you can use {user} and {server})")
-async def set_goodbye_message(interaction: discord.Interaction, message: str):
-    if interaction.user.id not in ADMIN_IDS:
-        return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
-    update_server_config(interaction.guild.id, "goodbye_message", message)
-    await interaction.response.send_message("✅ Goodbye message updated!", ephemeral=True)
-
-@bot.tree.command(name="set_goodbye_gif", description="Set the goodbye GIF/image link")
-@app_commands.describe(url="Direct link of the GIF or image")
+@bot.tree.command(name="set_goodbye_gif", description="Imposta la GIF di addio")
 async def set_goodbye_gif(interaction: discord.Interaction, url: str):
     if interaction.user.id not in ADMIN_IDS:
-        return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
+        return await interaction.response.send_message("Non hai i permessi!", ephemeral=True)
     update_server_config(interaction.guild.id, "goodbye_gif", url)
-    await interaction.response.send_message("✅ Goodbye GIF updated!", ephemeral=True)
+    await interaction.response.send_message("✅ GIF di addio aggiornata!", ephemeral=True)
 
-@bot.tree.command(name="test", description="Test welcome or goodbye messages")
-@app_commands.describe(tipo="Choose whether to test welcome or goodbye")
-@app_commands.choices(tipo=[
-    app_commands.Choice(name="welcome", value="welcome"),
-    app_commands.Choice(name="goodbye", value="goodbye")
-])
+@bot.tree.command(name="test", description="Testa i messaggi")
+@app_commands.choices(tipo=[app_commands.Choice(name="welcome", value="welcome"), app_commands.Choice(name="goodbye", value="goodbye")])
 async def test_command(interaction: discord.Interaction, tipo: str):
     if interaction.user.id not in ADMIN_IDS:
-        return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
+        return await interaction.response.send_message("Non hai i permessi!", ephemeral=True)
     
     await interaction.response.defer(ephemeral=True)
     conf = get_server_config(interaction.guild.id)
     
     if tipo == "welcome":
-        channel_id = conf.get("welcome_channel")
-        if not channel_id:
-            return await interaction.followup.send("❌ You must set a welcome channel first using `/set_welcome_channel`!", ephemeral=True)
+        ch_id = conf.get("welcome_channel")
+        if not ch_id:
+            return await interaction.followup.send("Prima imposta il canale di benvenuto!", ephemeral=True)
+        ch = interaction.guild.get_channel(int(ch_id))
+        if not ch:
+            return await interaction.followup.send("Canale non trovato!", ephemeral=True)
         
-        channel = interaction.guild.get_channel(int(channel_id))
-        if not channel:
-            return await interaction.followup.send("❌ The configured welcome channel no longer exists!", ephemeral=True)
-            
-        title = conf["welcome_title"].replace("{user}", interaction.user.name).replace("{server}", interaction.guild.name)
-        desc = conf["welcome_message"].replace("{user}", interaction.user.mention).replace("{server}", interaction.guild.name)
+        embed = discord.Embed(title=conf["welcome_title"].replace("{user}", interaction.user.name), description=conf["welcome_message"].replace("{user}", interaction.user.mention), color=discord.Color.green())
+        if conf.get("welcome_gif"): embed.set_image(url=conf["welcome_gif"])
+        await ch.send(embed=embed)
+        await interaction.followup.send("✅ Test benvenuto inviato!", ephemeral=True)
         
-        embed = discord.Embed(title=title, description=desc, color=discord.Color.green())
-        if conf.get("welcome_gif"):
-            embed.set_image(url=conf["welcome_gif"])
-        
-        await channel.send(embed=embed)
-        await interaction.followup.send("✅ Welcome test sent successfully to the configured channel!", ephemeral=True)
-
     elif tipo == "goodbye":
-        channel_id = conf.get("goodbye_channel")
-        if not channel_id:
-            return await interaction.followup.send("❌ You must set a goodbye channel first using `/set_goodbye_channel`!", ephemeral=True)
+        ch_id = conf.get("goodbye_channel")
+        if not ch_id:
+            return await interaction.followup.send("Prima imposta il canale di addio!", ephemeral=True)
+        ch = interaction.guild.get_channel(int(ch_id))
+        if not ch:
+            return await interaction.followup.send("Canale non trovato!", ephemeral=True)
         
-        channel = interaction.guild.get_channel(int(channel_id))
-        if not channel:
-            return await interaction.followup.send("❌ The configured goodbye channel no longer exists!", ephemeral=True)
-            
-        title = conf["goodbye_title"].replace("{user}", interaction.user.name).replace("{server}", interaction.guild.name)
-        desc = conf["goodbye_message"].replace("{user}", interaction.mention).replace("{server}", interaction.guild.name)
-        
-        embed = discord.Embed(title=title, description=desc, color=discord.Color.red())
-        if conf.get("goodbye_gif"):
-            embed.set_image(url=conf["goodbye_gif"])
-        
-        await channel.send(embed=embed)
-        await interaction.followup.send("✅ Goodbye test sent successfully to the configured channel!", ephemeral=True)
+        embed = discord.Embed(title=conf["goodbye_title"].replace("{user}", interaction.user.name), description=conf["goodbye_message"].replace("{user}", interaction.user.name), color=discord.Color.red())
+        if conf.get("goodbye_gif"): embed.set_image(url=conf["goodbye_gif"])
+        await ch.send(embed=embed)
+        await interaction.followup.send("✅ Test addio inviato!", ephemeral=True)
 
 @bot.event
 async def on_ready():
     await bot.tree.sync()
-    print(f'Bot online as {bot.user} and commands synced!')
+    print(f'Bot online come {bot.user} e pronto!')
 
 bot.run(os.environ['TOKEN'])
 
