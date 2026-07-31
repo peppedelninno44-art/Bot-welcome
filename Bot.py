@@ -155,7 +155,7 @@ async def set_goodbye_message(interaction: discord.Interaction, message: str):
 @bot.tree.command(name="set_goodbye_gif", description="Set the goodbye GIF/image link")
 @app_commands.describe(url="Direct link of the GIF or image")
 async def set_goodbye_gif(interaction: discord.Interaction, url: str):
-    if interaction.user.id not in ADMIN_IDS:
+    if interaction.user.id not in ADMIN_IDs:
         return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
     await interaction.response.defer(ephemeral=True)
     update_server_config(interaction.guild.id, "goodbye_gif", url)
@@ -212,8 +212,8 @@ async def test_command(interaction: discord.Interaction, tipo: str):
 
 @bot.event
 async def on_ready():
-    await bot.tree.sync()
-    print(f'Bot online as {bot.user} and commands synced!')
+    await bot.tree.sync()  # Sincronizzazione globale per TUTTI i server
+    print(f'Bot online as {bot.user} and global commands synced!')
 
 bot.run(os.environ['TOKEN'])
-    
+            
