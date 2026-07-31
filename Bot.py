@@ -32,11 +32,11 @@ def get_server_config(guild_id):
             "welcome_channel": None,
             "welcome_title": "Welcome to {server}!",
             "welcome_message": "Hey {user}, welcome to the server! Make yourself comfortable.",
-            "welcome_gif": "https://media2.giphy.com/media/v1.Y2lkPTZjMDliOTUyazJweXM1eGZiNWtmb3ZycDN6b3kyMHlydmhtd3lxNjUxcTc4czhtZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/2ZpkYucNiZpovyuMkf/giphy.gif",
+            "welcome_gif": "https://media.tenor.com/x81ZoIZxEnkAAAAm/lebron-lebron-james.gif",
             "goodbye_channel": None,
             "goodbye_title": "Goodbye from {server}",
             "goodbye_message": "{user} has left the server. Hope to see you again soon!",
-            "goodbye_gif": "https://media2.giphy.com/media/v1.Y2lkPTZjMDliOTUyazJweXM1eGZiNWtmb3ZycDN6b3kyMHlydmhtd3lxNjUxcTc4czhtZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/2ZpkYucNiZpovyuMkf/giphy.gif"
+            "goodbye_gif": "https://media.tenor.com/x81ZoIZxEnkAAAAm/lebron-lebron-james.gif"
         }
         save_config(config)
     return config[str_id]
@@ -62,7 +62,8 @@ async def on_member_join(member):
             desc = conf["welcome_message"].replace("{user}", member.mention).replace("{server}", member.guild.name)
             
             embed = discord.Embed(title=title, description=desc, color=discord.Color.green())
-            embed.set_image(url=conf["welcome_gif"])
+            if conf["welcome_gif"]:
+                embed.set_image(url=conf["welcome_gif"])
             await channel.send(embed=embed)
 
 @bot.event
@@ -76,7 +77,8 @@ async def on_member_remove(member):
             desc = conf["goodbye_message"].replace("{user}", member.name).replace("{server}", member.guild.name)
             
             embed = discord.Embed(title=title, description=desc, color=discord.Color.red())
-            embed.set_image(url=conf["goodbye_gif"])
+            if conf["goodbye_gif"]:
+                embed.set_image(url=conf["goodbye_gif"])
             await channel.send(embed=embed)
 
 # --- CONFIGURATION SLASH COMMANDS ---
@@ -97,7 +99,6 @@ async def set_welcome_channel(interaction: discord.Interaction, channel: str):
     
     await interaction.response.defer(ephemeral=True)
     
-    # Estrae l'ID pulito sia se l'utente mette la menzione sia se mette l'ID diretto
     clean_id = channel.replace("<#", "").replace(">", "")
     if not clean_id.isdigit():
         return await interaction.followup.send("❌ Please tag a valid channel like #general!", ephemeral=True)
@@ -200,7 +201,8 @@ async def test_command(interaction: discord.Interaction, tipo: str):
         desc = conf["welcome_message"].replace("{user}", interaction.user.mention).replace("{server}", interaction.guild.name)
         
         embed = discord.Embed(title=title, description=desc, color=discord.Color.green())
-        embed.set_image(url=conf["welcome_gif"])
+        if conf["welcome_gif"]:
+            embed.set_image(url=conf["welcome_gif"])
         
         await channel.send(embed=embed)
         await interaction.followup.send("✅ Welcome test sent successfully to the configured channel!", ephemeral=True)
@@ -218,7 +220,8 @@ async def test_command(interaction: discord.Interaction, tipo: str):
         desc = conf["goodbye_message"].replace("{user}", interaction.user.name).replace("{server}", interaction.guild.name)
         
         embed = discord.Embed(title=title, description=desc, color=discord.Color.red())
-        embed.set_image(url=conf["goodbye_gif"])
+        if conf["goodbye_gif"]:
+            embed.set_image(url=conf["goodbye_gif"])
         
         await channel.send(embed=embed)
         await interaction.followup.send("✅ Goodbye test sent successfully to the configured channel!", ephemeral=True)
@@ -229,3 +232,4 @@ async def on_ready():
     print(f'Bot online as {bot.user} and commands synced!')
 
 bot.run(os.environ['TOKEN'])
+            
