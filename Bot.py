@@ -33,12 +33,12 @@ def get_server_config(guild_id):
     if str_id not in config:
         config[str_id] = {
             "welcome_channel": None,
-            "welcome_title": "Welcome to {server}!",
-            "welcome_message": "Hey {user}, welcome to the server! Make yourself comfortable.",
+            "welcome_title": "Welcome!",
+            "welcome_message": "WELCOME {user} TO THE {server} ENJOY!!!",
             "welcome_gif": "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExbWV4ZjQyZWN0ZWp0djdvZG8ydWphNW1kMW50aGlnbXp6OXNoaHhiayZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oKIPnAiaMCws8nOsE/giphy.gif",
             "goodbye_channel": None,
-            "goodbye_title": "Goodbye from {server}",
-            "goodbye_message": "{user} has left the server. We will miss them!",
+            "goodbye_title": "Goodbye!",
+            "goodbye_message": "{user} has left the server.",
             "goodbye_gif": "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExbWV4ZjQyZWN0ZWp0djdvZG8ydWphNW1kMW50aGlnbXp6OXNoaHhiayZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oKIPnAiaMCws8nOsE/giphy.gif"
         }
         save_config(config)
@@ -86,7 +86,7 @@ async def on_member_remove(member):
             channel = member.guild.get_channel(int(channel_id))
             if channel:
                 title = conf["goodbye_title"].replace("{user}", member.name).replace("{server}", member.guild.name)
-                desc = conf["goodbye_message"].replace("{user}", member.name).replace("{server}", member.guild.name)
+                desc = conf["goodbye_message"].replace("{user}", member.mention).replace("{server}", member.guild.name)
                 
                 embed = discord.Embed(title=title, description=desc, color=discord.Color.red())
                 if conf.get("goodbye_gif"):
@@ -197,7 +197,7 @@ async def test_command(interaction: discord.Interaction, tipo: str):
             return await interaction.followup.send("Channel not found!", ephemeral=True)
         
         title = conf["goodbye_title"].replace("{user}", interaction.user.name).replace("{server}", interaction.guild.name)
-        desc = conf["goodbye_message"].replace("{user}", interaction.name).replace("{server}", interaction.guild.name)
+        desc = conf["goodbye_message"].replace("{user}", interaction.user.mention).replace("{server}", interaction.guild.name)
         
         embed = discord.Embed(title=title, description=desc, color=discord.Color.red())
         if conf.get("goodbye_gif"): embed.set_image(url=conf["goodbye_gif"])
@@ -210,4 +210,4 @@ async def on_ready():
     print(f'Bot online as {bot.user} and ready!')
 
 bot.run(os.environ['TOKEN'])
-
+        
