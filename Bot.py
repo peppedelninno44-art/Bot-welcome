@@ -199,7 +199,7 @@ async def test_command(interaction: discord.Interaction, tipo: str):
         
         channel = interaction.guild.get_channel(int(channel_id))
         if not channel:
-            return await interaction.followup.send("❌ The configured goodbye channel no longer history!", ephemeral=True)
+            return await interaction.followup.send("❌ The configured goodbye channel no longer exists!", ephemeral=True)
             
         title = conf["goodbye_title"].replace("{user}", interaction.user.name).replace("{server}", interaction.guild.name)
         desc = conf["goodbye_message"].replace("{user}", interaction.user.name).replace("{server}", interaction.guild.name)
@@ -212,8 +212,8 @@ async def test_command(interaction: discord.Interaction, tipo: str):
 
 @bot.event
 async def on_ready():
-    await bot.tree.sync()  # Sincronizzazione globale pulita per il bot multiserver
+    await bot.tree.sync()
     print(f'Bot online as {bot.user} and global commands synced!')
 
 bot.run(os.environ['TOKEN'])
-    
+            
