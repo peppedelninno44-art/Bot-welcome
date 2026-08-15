@@ -209,5 +209,6 @@ async def on_ready():
     await bot.tree.sync()
     print(f'Bot online as {bot.user} and ready!')
 
-bot.run("MTUyNjkyMDE3Njg0OTkxNTk1Ng.GmkVrm.a4xLLgd1O1FodrK3HgUi4g65QB7qdNyIDwQ6Vc")
+bot.run(os.environ['TOKEN'])
+
         
