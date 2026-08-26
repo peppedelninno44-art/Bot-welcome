@@ -263,6 +263,9 @@ async def help_command(interaction: discord.Interaction):
         value=(
             "`/match` - Create a 1v1 match between two players with buttons\n"
             "`/chance` - Calculate win probabilities between two players\n"
+            "`/8ball` - Ask a question to the magic ball\n"
+            "`/testa_o_croce` - Flip a coin (Heads or Tails)\n"
+            "`/frase_casuale` - Get a random epic ring quote\n"
             "`/set_announcement_channel` - Set announcement channel\n"
             "`/settings` - View current server configuration\n"
             "`/help` - Open this menu"
@@ -316,7 +319,7 @@ async def match(interaction: discord.Interaction, player1: discord.Member, playe
     await interaction.response.send_message(embed=embed, view=MatchView())
 
 # --- 2. /chance COMMAND ---
-@bot.tree.command(name="chance", description="Calculate win probabilities and good choices between two players")
+@bot.tree.command(name="chance", description="Calculate win probabilities between two players")
 @app_commands.describe(player1="First player", player2="Second player")
 async def chance(interaction: discord.Interaction, player1: discord.Member, player2: discord.Member):
     p1_chance = random.randint(15, 85)
@@ -328,7 +331,48 @@ async def chance(interaction: discord.Interaction, player1: discord.Member, play
     
     await interaction.response.send_message(embed=embed)
 
-# --- 3. /set_announcement_channel COMMAND ---
+# --- 3. /8ball COMMAND ---
+@bot.tree.command(name="8ball", description="Ask a question and get a magical prediction")
+@app_commands.describe(question="The question you want to ask")
+async def ball8(interaction: discord.Interaction, question: str):
+    responses = [
+        "Sì, assolutamente!",
+        "È molto probabile.",
+        "Senza dubbio.",
+        "Le probabilità sono a favore.",
+        "Chiedi di nuovo più tardi...",
+        "Non ci farei affidamento.",
+        "Molto improbabile.",
+        "Assolutamente no!"
+    ]
+    answer = random.choice(responses)
+    embed = discord.Embed(title="🎱 Magic 8-Ball", color=discord.Color.dark_purple())
+    embed.add_field(name="Domanda", value=question, inline=False)
+    embed.add_field(name="Risposta", value=answer, inline=False)
+    await interaction.response.send_message(embed=embed)
+
+# --- 4. /testa_o_croce COMMAND ---
+@bot.tree.command(name="testa_o_croce", description="Flip a coin: Heads or Tails")
+async def testa_o_croce(interaction: discord.Interaction):
+    result = random.choice(["🪙 Testa (Heads)", "🪙 Croce (Tails)"])
+    embed = discord.Embed(title="🪙 Lancio della Moneta", description=f"È uscito: **{result}**!", color=discord.Color.gold())
+    await interaction.response.send_message(embed=embed)
+
+# --- 5. /frase_casuale COMMAND ---
+@bot.tree.command(name="frase_casuale", description="Get a random epic quote or ring statement")
+async def frase_casuale(interaction: discord.Interaction):
+    quotes = [
+        "\"From the opening rounds, the fight delivered intense exchanges!\" 🥊",
+        "\"The champion stands tall, ready for the next legendary clash!\" 🌍",
+        "\"A clear and decisive verdict on the professional division stage!\" ⚡",
+        "\"The official decision stands without hesitation!\" 🥇",
+        "\"Absolute peak of their regions, a battle to remember forever!\" 🔥"
+    ]
+    quote = random.choice(quotes)
+    embed = discord.Embed(title="📜 Ring Quote", description=quote, color=discord.Color.teal())
+    await interaction.response.send_message(embed=embed)
+
+# --- 6. /set_announcement_channel COMMAND ---
 @bot.tree.command(name="set_announcement_channel", description="Set the channel for match announcements")
 @app_commands.describe(channel="The channel where announcements will be sent")
 async def set_announcement_channel(interaction: discord.Interaction, channel: discord.TextChannel):
@@ -346,4 +390,4 @@ async def on_ready():
         print(e)
 
 bot.run(os.environ['TOKEN'])
-    
+        
