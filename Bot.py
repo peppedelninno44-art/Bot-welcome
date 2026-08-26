@@ -1,6 +1,5 @@
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import threading
-import os
 
 class SimpleHandler(BaseHTTPRequestHandler):
     def do_GET(self):
