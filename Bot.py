@@ -32,6 +32,7 @@ intents.message_content = True
 intents.members = True  # Essential for member events
 bot = commands.Bot(command_prefix='!', intents=intents)
 
+# --- MEMORY PROTECTION (Impostazioni persistenti salvate per non perderle mai) ---
 def load_config():
     if os.path.exists(CONFIG_FILE):
         try:
@@ -42,6 +43,7 @@ def load_config():
     return {}
 
 def save_config(config):
+    # Salva in modo sicuro sul disco per evitare perdite durante gli aggiornamenti del bot
     with open(CONFIG_FILE, "w") as f:
         json.dump(config, f, indent=4)
 
@@ -52,7 +54,7 @@ def get_server_config(guild_id):
         config[str_id] = {
             "welcome_channel": None,
             "welcome_title": "Welcome!",
-            "welcome_message": "WELCOME {user} TO THE {server} ENJOY!!!",
+            "welcome_message": "WELCOME {user} TO THE {server}! You are our {member_count}th member! ENJOY!!!",
             "welcome_gif": "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExbWV4ZjQyZWN0ZWp0djdvZG8ydWphNW1kMW50aGlnbXp6OXNoaHhiayZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oKIPnAiaMCws8nOsE/giphy.gif",
             "goodbye_channel": None,
             "goodbye_title": "Goodbye!",
@@ -81,8 +83,9 @@ async def on_member_join(member):
         if channel_id:
             channel = member.guild.get_channel(int(channel_id))
             if channel:
+                member_count = member.guild.member_count
                 title = conf["welcome_title"].replace("{user}", member.name).replace("{server}", member.guild.name)
-                desc = conf["welcome_message"].replace("{user}", member.mention).replace("{server}", member.guild.name)
+                desc = conf["welcome_message"].replace("{user}", member.mention).replace("{server}", member.guild.name).replace("{member_count}", str(member_count))
                 
                 embed = discord.Embed(title=title, description=desc, color=discord.Color.green())
                 if conf.get("welcome_gif"):
@@ -144,7 +147,7 @@ async def set_welcome_title(interaction: discord.Interaction, title: str):
     update_server_config(interaction.guild.id, "welcome_title", title)
     await interaction.response.send_message("✅ Welcome title updated!", ephemeral=True)
 
-@bot.tree.command(name="set_welcome_message", description="Set welcome text/description (use {user} and {server})")
+@bot.tree.command(name="set_welcome_message", description="Set welcome text/description (use {user}, {server} and {member_count})")
 async def set_welcome_message(interaction: discord.Interaction, message: str):
     if interaction.user.id not in ADMIN_IDS:
         return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
@@ -198,8 +201,9 @@ async def test_command(interaction: discord.Interaction, tipo: str):
         if not ch:
             return await interaction.followup.send("Channel not found!", ephemeral=True)
         
+        member_count = interaction.guild.member_count
         title = conf["welcome_title"].replace("{user}", interaction.user.name).replace("{server}", interaction.guild.name)
-        desc = conf["welcome_message"].replace("{user}", interaction.user.mention).replace("{server}", interaction.guild.name)
+        desc = conf["welcome_message"].replace("{user}", interaction.user.mention).replace("{server}", interaction.guild.name).replace("{member_count}", str(member_count))
         
         embed = discord.Embed(title=title, description=desc, color=discord.Color.green())
         if conf.get("welcome_gif"): embed.set_image(url=conf["welcome_gif"])
@@ -241,11 +245,23 @@ async def match(interaction: discord.Interaction, player1: discord.Member, playe
 
         @discord.ui.button(label="Win P1", style=discord.ButtonStyle.green)
         async def win_p1(self, interaction: discord.Interaction, button: discord.ui.Button):
-            await interaction.response.send_message(f"🏆 Match Winner: **{player1.display_name}**!", ephemeral=False)
+            win_embed = discord.Embed(
+                title="🏆 VICTORY!",
+                description=f"The winner of the match is **{player1.display_name}**!",
+                color=discord.Color.gold()
+            )
+            win_embed.set_image(url="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3ZwbHZ4aDZicXR3MHhveHBocHRvN3VrcDZ2cGR3bnNuc3l0dzN6dCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/26ufdipQqU2lhNA4g/giphy.gif")
+            await interaction.response.send_message(embed=win_embed, ephemeral=False)
 
         @discord.ui.button(label="Win P2", style=discord.ButtonStyle.green)
         async def win_p2(self, interaction: discord.Interaction, button: discord.ui.Button):
-            await interaction.response.send_message(f"🏆 Match Winner: **{player2.display_name}**!", ephemeral=False)
+            win_embed = discord.Embed(
+                title="🏆 VICTORY!",
+                description=f"The winner of the match is **{player2.display_name}**!",
+                color=discord.Color.gold()
+            )
+            win_embed.set_image(url="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3ZwbHZ4aDZicXR3MHhveHBocHRvN3VrcDZ2cGR3bnNuc3l0dzN6dCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/26ufdipQqU2lhNA4g/giphy.gif")
+            await interaction.response.send_message(embed=win_embed, ephemeral=False)
 
         @discord.ui.button(label="Rematch", style=discord.ButtonStyle.blurple, emoji="🔄")
         async def rematch(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -282,10 +298,40 @@ async def set_announcement_channel(interaction: discord.Interaction, channel: di
     announcement_channels[interaction.guild.id] = channel.id
     await interaction.response.send_message(f"✅ Announcement channel successfully set to {channel.mention}!", ephemeral=True)
 
+# --- 4. /help COMMAND ---
+@bot.tree.command(name="help", description="Show all available bot commands")
+async def help_command(interaction: discord.Interaction):
+    embed = discord.Embed(
+        title="🤖 Bot Commands Menu",
+        description="Here is the list of all available commands grouped by category:",
+        color=discord.Color.purple()
+    )
+    
+    match_commands = (
+        "`/match` - Create a 1v1 match between two players\n"
+        "`/chance` - Calculate win probabilities and good choices\n"
+        "`/set_announcement_channel` - Set channel for match announcements"
+    )
+    
+    admin_commands = (
+        "`/set_welcome_channel` - Set welcome messages channel\n"
+        "`/set_goodbye_channel` - Set goodbye messages channel\n"
+        "`/set_welcome_title` / `set_welcome_message` - Customize welcome\n"
+        "`/set_goodbye_title` / `set_goodbye_message` - Customize goodbye\n"
+        "`/set_welcome_gif` / `set_goodbye_gif` - Set GIFs\n"
+        "`/test` - Test welcome or goodbye embeds"
+    )
+    
+    embed.add_field(name="⚔️ Match & Game Commands", value=match_commands, inline=False)
+    embed.add_field(name="⚙️ Admin & Setup Commands", value=admin_commands, inline=False)
+    embed.set_footer(text="Use slash commands (/) to execute them!")
+    
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
 @bot.event
 async def on_ready():
     await bot.tree.sync()
     print(f'Bot online as {bot.user} and ready!')
 
 bot.run(os.environ['TOKEN'])
-            
+    
