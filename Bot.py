@@ -16,6 +16,7 @@ def run_server():
 # Avvia il server web in background insieme al bot
 threading.Thread(target=run_server, daemon=True).start()
 
+
 import discord
 from discord.ext import commands
 from discord import app_commands
