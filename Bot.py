@@ -263,6 +263,7 @@ async def help_command(interaction: discord.Interaction):
         value=(
             "`/match` - Create a 1v1 match between two players with buttons\n"
             "`/chance` - Calculate win probabilities between two players\n"
+            "`/set_announcement_channel` - Set announcement channel\n"
             "`/settings` - View current server configuration\n"
             "`/help` - Open this menu"
         ),
@@ -327,6 +328,13 @@ async def chance(interaction: discord.Interaction, player1: discord.Member, play
     
     await interaction.response.send_message(embed=embed)
 
+# --- 3. /set_announcement_channel COMMAND ---
+@bot.tree.command(name="set_announcement_channel", description="Set the channel for match announcements")
+@app_commands.describe(channel="The channel where announcements will be sent")
+async def set_announcement_channel(interaction: discord.Interaction, channel: discord.TextChannel):
+    announcement_channels[interaction.guild.id] = channel.id
+    await interaction.response.send_message(f"✅ Announcement channel successfully set to {channel.mention}!", ephemeral=True)
+
 # --- BOT STARTUP ---
 @bot.event
 async def on_ready():
@@ -337,6 +345,5 @@ async def on_ready():
     except Exception as e:
         print(e)
 
-TOKEN = os.environ.get("DISCORD_TOKEN")
-bot.run(TOKEN)
+bot.run(os.environ['TOKEN'])
     
