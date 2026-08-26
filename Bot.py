@@ -1,5 +1,11 @@
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import threading
+import discord
+from discord.ext import commands
+from discord import app_commands
+import os
+import json
+import random
 
 class SimpleHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -15,16 +21,10 @@ def run_server():
 # Avvia il server web in background insieme al bot
 threading.Thread(target=run_server, daemon=True).start()
 
-
-import discord
-from discord.ext import commands
-from discord import app_commands
-import os
-import json
-
 # --- CONFIGURATION ---
 ADMIN_IDS = [1171135456306536450, 924641550133248000]
 CONFIG_FILE = "server_config.json"
+announcement_channels = {}
 # ---------------------
 
 intents = discord.Intents.default()
@@ -222,11 +222,70 @@ async def test_command(interaction: discord.Interaction, tipo: str):
         await ch.send(embed=embed)
         await interaction.followup.send("✅ Goodbye test sent!", ephemeral=True)
 
+# --- 1. /match COMMAND ---
+@bot.tree.command(name="match", description="Create a 1v1 match between two players")
+@app_commands.describe(player1="The first player", player2="The second player")
+async def match(interaction: discord.Interaction, player1: discord.Member, player2: discord.Member):
+    embed = discord.Embed(
+        title="⚔️ 1v1 MATCH",
+        description=f"{player1.mention} VS {player2.mention}",
+        color=discord.Color.gold()
+    )
+    embed.add_field(name="Player 1", value=player1.mention, inline=False)
+    embed.add_field(name="Player 2", value=player2.mention, inline=False)
+    embed.set_footer(text=f"Match created on {discord.utils.utcnow().strftime('%d/%m/%Y - %H:%M')}")
+
+    class MatchView(discord.ui.View):
+        def __init__(self):
+            super().__init__(timeout=None)
+
+        @discord.ui.button(label="Win P1", style=discord.ButtonStyle.green)
+        async def win_p1(self, interaction: discord.Interaction, button: discord.ui.Button):
+            await interaction.response.send_message(f"🏆 Match Winner: **{player1.display_name}**!", ephemeral=False)
+
+        @discord.ui.button(label="Win P2", style=discord.ButtonStyle.green)
+        async def win_p2(self, interaction: discord.Interaction, button: discord.ui.Button):
+            await interaction.response.send_message(f"🏆 Match Winner: **{player2.display_name}**!", ephemeral=False)
+
+        @discord.ui.button(label="Rematch", style=discord.ButtonStyle.blurple, emoji="🔄")
+        async def rematch(self, interaction: discord.Interaction, button: discord.ui.Button):
+            await interaction.response.send_message(f"🔄 Rematch requested between {player1.mention} and {player2.mention}!", ephemeral=False)
+
+    await interaction.response.send_message(embed=embed, view=MatchView())
+
+# --- 2. /chance COMMAND ---
+@bot.tree.command(name="chance", description="Calculate win probabilities and good choices between two players")
+@app_commands.describe(player1="First player", player2="Second player")
+async def chance(interaction: discord.Interaction, player1: discord.Member, player2: discord.Member):
+    p1_chance = random.randint(15, 85)
+    p2_chance = 100 - p1_chance
+
+    embed = discord.Embed(
+        title="📊 Match Probability Analysis",
+        description=f"Analysis based on match history between {player1.mention} and {player2.mention}",
+        color=discord.Color.blue()
+    )
+    embed.add_field(name=f"{player1.display_name}", value=f"Win Probability: **{p1_chance}%**", inline=True)
+    embed.add_field(name=f"{player2.display_name}", value=f"Win Probability: **{p2_chance}%**", inline=True)
+    
+    if p1_chance >= p2_chance:
+        embed.set_footer(text=f"💡 {p1_chance}% good choice for {player1.display_name} / {p2_chance}% bad choice")
+    else:
+        embed.set_footer(text=f"💡 {p2_chance}% good choice for {player2.display_name} / {p1_chance}% bad choice")
+
+    await interaction.response.send_message(embed=embed)
+
+# --- 3. /set_announcement_channel COMMAND ---
+@bot.tree.command(name="set_announcement_channel", description="Set the channel for match announcements")
+@app_commands.describe(channel="The channel where announcements will be sent")
+async def set_announcement_channel(interaction: discord.Interaction, channel: discord.TextChannel):
+    announcement_channels[interaction.guild.id] = channel.id
+    await interaction.response.send_message(f"✅ Announcement channel successfully set to {channel.mention}!", ephemeral=True)
+
 @bot.event
 async def on_ready():
     await bot.tree.sync()
     print(f'Bot online as {bot.user} and ready!')
 
 bot.run(os.environ['TOKEN'])
-
-        
+            
