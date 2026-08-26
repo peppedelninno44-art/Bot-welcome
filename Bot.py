@@ -219,6 +219,58 @@ async def test_command(interaction: discord.Interaction, tipo: str):
         await ch.send(embed=embed)
         await interaction.followup.send("✅ Goodbye test sent!", ephemeral=True)
 
+# --- INFO / SETTINGS COMMAND ---
+@bot.tree.command(name="settings", description="Shows current server configuration and channels")
+async def settings(interaction: discord.Interaction):
+    conf = get_server_config(interaction.guild.id)
+    
+    w_ch = f"<#{conf['welcome_channel']}>" if conf.get("welcome_channel") else "Not set"
+    g_ch = f"<#{conf['goodbye_channel']}>" if conf.get("goodbye_channel") else "Not set"
+    
+    embed = discord.Embed(title="⚙️ Server Settings & Configuration", color=discord.Color.blue())
+    embed.add_field(name="Welcome Channel", value=w_ch, inline=True)
+    embed.add_field(name="Goodbye Channel", value=g_ch, inline=True)
+    embed.add_field(name="Welcome Title", value=conf.get("welcome_title"), inline=False)
+    embed.add_field(name="Goodbye Title", value=conf.get("goodbye_title"), inline=False)
+    embed.add_field(name="Welcome GIF", value=conf.get("welcome_gif") or "None", inline=False)
+    embed.add_field(name="Goodbye GIF", value=conf.get("goodbye_gif") or "None", inline=False)
+    
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+# --- HELP / MENU COMMAND ---
+@bot.tree.command(name="help", description="Shows the menu with all available bot commands")
+async def help_command(interaction: discord.Interaction):
+    embed = discord.Embed(title="📖 Bot Menu & Commands", description="Here is the list of all available commands:", color=discord.Color.purple())
+    
+    embed.add_field(
+        name="🛠️ Admin Setup Commands",
+        value=(
+            "`/set_welcome_channel` - Set welcome channel\n"
+            "`/set_goodbye_channel` - Set goodbye channel\n"
+            "`/set_welcome_title` - Set welcome embed title\n"
+            "`/set_welcome_message` - Set welcome message\n"
+            "`/set_goodbye_title` - Set goodbye embed title\n"
+            "`/set_goodbye_message` - Set goodbye message\n"
+            "`/set_welcome_gif` - Set welcome GIF URL\n"
+            "`/set_goodbye_gif` - Set goodbye GIF URL\n"
+            "`/test` - Test welcome or goodbye message"
+        ),
+        inline=False
+    )
+    
+    embed.add_field(
+        name="🎮 Fun & Utility Commands",
+        value=(
+            "`/match` - Create a 1v1 match between two players with buttons\n"
+            "`/chance` - Calculate win probabilities between two players\n"
+            "`/settings` - View current server configuration\n"
+            "`/help` - Open this menu"
+        ),
+        inline=False
+    )
+    
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
 # --- 1. /match COMMAND ---
 @bot.tree.command(name="match", description="Create a 1v1 match between two players")
 @app_commands.describe(player1="The first player", player2="The second player")
@@ -268,4 +320,23 @@ async def match(interaction: discord.Interaction, player1: discord.Member, playe
 async def chance(interaction: discord.Interaction, player1: discord.Member, player2: discord.Member):
     p1_chance = random.randint(15, 85)
     p2_chance = 100 - p1_chance
-            
+    
+    embed = discord.Embed(title="🎲 Match Probability / Chance", color=discord.Color.magenta())
+    embed.add_field(name=player1.display_name, value=f"Win Chance: **{p1_chance}%**", inline=True)
+    embed.add_field(name=player2.display_name, value=f"Win Chance: **{p2_chance}%**", inline=True)
+    
+    await interaction.response.send_message(embed=embed)
+
+# --- BOT STARTUP ---
+@bot.event
+async def on_ready():
+    print(f"Logged in as {bot.user} (ID: {bot.user.id})")
+    try:
+        synced = await bot.tree.sync()
+        print(f"Synced {len(synced)} command(s).")
+    except Exception as e:
+        print(e)
+
+TOKEN = os.environ.get("DISCORD_TOKEN")
+bot.run(TOKEN)
+    
