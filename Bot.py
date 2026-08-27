@@ -107,6 +107,15 @@ intents.members = True
 bot = commands.Bot(command_prefix='!', intents=intents)
 
 @bot.event
+async def on_ready():
+    try:
+        synced = await bot.tree.sync()
+        print(f"Synced {len(synced)} command(s)")
+    except Exception as e:
+        print(e)
+    print(f"Logged in as {bot.user.name}")
+
+@bot.event
 async def on_member_join(member):
     try:
         conf = get_server_config(member.guild.id)
@@ -200,7 +209,8 @@ async def set_goodbye_gif(interaction: discord.Interaction, url: str):
         return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
     update_server_config(interaction.guild.id, "goodbye_gif", url)
     await interaction.response.send_message("✅ Goodbye GIF updated!", ephemeral=True)
-    @bot.tree.command(name="test", description="Test welcome or goodbye messages")
+
+@bot.tree.command(name="test", description="Test welcome or goodbye messages")
 @app_commands.choices(tipo=[app_commands.Choice(name="welcome", value="welcome"), app_commands.Choice(name="goodbye", value="goodbye")])
 async def test_command(interaction: discord.Interaction, tipo: str):
     if interaction.user.id not in ADMIN_IDS:
@@ -363,25 +373,4 @@ async def poll(interaction: discord.Interaction, question: str):
     await message.add_reaction("🤷‍♂️")
 
 @bot.tree.command(name="userinfo", description="View detailed information about a user")
-@app_commands.describe(member="The user you want to check")
-async def userinfo(interaction: discord.Interaction, member: discord.Member = None):
-    if member is None: member = interaction.user
-    embed = discord.Embed(title=f"👤 User Info for {member.display_name}", color=member.color)
-    embed.set_thumbnail(url=member.display_avatar.url)
-    embed.add_field(name="Username", value=str(member), inline=True)
-    embed.add_field(name="ID", value=str(member.id), inline=True)
-    embed.add_field(name="Account Created", value=member.created_at.strftime("%d/%m/%Y"), inline=True)
-    embed.add_field(name="Joined Server", value=member.joined_at.strftime("%d/%m/%Y") if member.joined_at else "N/A", inline=True)
-    await interaction.response.send_message(embed=embed, ephemeral=True)
-
-@bot.event
-async def on_ready():
-    print(f"Logged in as {bot.user} (ID: {bot.user.id})")
-    try:
-        synced = await bot.tree.sync()
-        print(f"Synced {len(synced)} command(s).")
-    except Exception as e:
-        print(e)
-
-bot.run(os.environ['TOKEN'])
-    
+@app_commands.describe(member="The user you
