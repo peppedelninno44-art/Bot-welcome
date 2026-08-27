@@ -6,7 +6,7 @@ from discord import app_commands
 import os
 import json
 import random
-import psycopg2
+import asyncio
 
 class SimpleHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -22,84 +22,40 @@ def run_server():
 threading.Thread(target=run_server, daemon=True).start()
 
 ADMIN_IDS = [1171135456306536450, 924641550133248000]
-
-DATABASE_URL = os.environ.get("DATABASE_URL")
-
-def get_db_connection():
-    return psycopg2.connect(DATABASE_URL, sslmode='require')
-
-def init_db():
-    try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS server_config (
-                guild_id TEXT PRIMARY KEY,
-                config_data JSONB
-            )
-        """)
-        conn.commit()
-        cur.close()
-        conn.close()
-        print("Database Supabase connected and initialized successfully!")
-    except Exception as e:
-        print(f"Database connection error: {e}")
-
-init_db()
+CONFIG_FILE = "config.json"
 
 def load_config():
-    config = {}
+    if not os.path.exists(CONFIG_FILE): return {}
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("SELECT guild_id, config_data FROM server_config")
-        rows = cur.fetchall()
-        for row in rows:
-            config[str(row[0])] = row[1]
-        cur.close()
-        conn.close()
-    except Exception as e:
-        print(f"Error loading config: {e}")
-    return config
+        with open(CONFIG_FILE, "r") as f: return json.load(f)
+    except Exception: return {}
 
-def save_config_guild(guild_id, guild_data):
+def save_config(config):
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("""
-            INSERT INTO server_config (guild_id, config_data) 
-            VALUES (%s, %s)
-            ON CONFLICT (guild_id) 
-            DO UPDATE SET config_data = EXCLUDED.config_data
-        """, (str(guild_id), json.dumps(guild_data)))
-        conn.commit()
-        cur.close()
-        conn.close()
-    except Exception as e:
-        print(f"Error saving config: {e}")
+        with open(CONFIG_FILE, "w") as f: json.dump(config, f, indent=4)
+    except Exception as e: print(f"Error saving config: {e}")
 
 def get_server_config(guild_id):
     config = load_config()
     str_id = str(guild_id)
     if str_id not in config:
-        default_data = {
-            "welcome_channel": None,
-            "welcome_title": "Welcome!",
+        config[str_id] = {
+            "welcome_channel": None, "welcome_title": "Welcome!",
             "welcome_message": "WELCOME {user} TO THE {server}! You are our {member_count}th member! ENJOY!!!",
-            "welcome_gif": "",
-            "goodbye_channel": None,
-            "goodbye_title": "Goodbye!",
-            "goodbye_message": "{user} has left the server.",
-            "goodbye_gif": ""
+            "welcome_gif": "", "goodbye_channel": None, "goodbye_title": "Goodbye!",
+            "goodbye_message": "{user} has left the server.", "goodbye_gif": ""
         }
-        save_config_guild(guild_id, default_data)
-        return default_data
+        save_config(config)
     return config[str_id]
 
 def update_server_config(guild_id, key, value):
-    conf = get_server_config(guild_id)
-    conf[key] = value
-    save_config_guild(guild_id, conf)
+    config = load_config()
+    str_id = str(guild_id)
+    if str_id not in config:
+        get_server_config(guild_id)
+        config = load_config()
+    config[str_id][key] = value
+    save_config(config)
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -111,8 +67,7 @@ async def on_ready():
     try:
         synced = await bot.tree.sync()
         print(f"Synced {len(synced)} command(s)")
-    except Exception as e:
-        print(e)
+    except Exception as e: print(e)
     print(f"Logged in as {bot.user.name}")
 
 @bot.event
@@ -123,14 +78,13 @@ async def on_member_join(member):
         if channel_id:
             channel = member.guild.get_channel(int(channel_id))
             if channel:
-                member_count = member.guild.member_count
+                m_count = member.guild.member_count
                 title = conf["welcome_title"].replace("{user}", member.name).replace("{server}", member.guild.name)
-                desc = conf["welcome_message"].replace("{user}", member.mention).replace("{server}", member.guild.name).replace("{member_count}", str(member_count))
+                desc = conf["welcome_message"].replace("{user}", member.mention).replace("{server}", member.guild.name).replace("{member_count}", str(m_count))
                 embed = discord.Embed(title=title, description=desc, color=discord.Color.green())
                 if conf.get("welcome_gif"): embed.set_image(url=conf["welcome_gif"])
                 await channel.send(embed=embed)
-    except Exception as e:
-        print(f"ERROR in on_member_join: {e}")
+    except Exception as e: print(f"ERROR in on_member_join: {e}")
 
 @bot.event
 async def on_member_remove(member):
@@ -145,76 +99,284 @@ async def on_member_remove(member):
                 embed = discord.Embed(title=title, description=desc, color=discord.Color.red())
                 if conf.get("goodbye_gif"): embed.set_image(url=conf["goodbye_gif"])
                 await channel.send(embed=embed)
-    except Exception as e:
-        print(f"ERROR in on_member_remove: {e}")
-
-@bot.tree.command(name="set_welcome_channel", description="Set the welcome channel")
-async def set_welcome_channel(interaction: discord.Interaction, channel: str):
-    if interaction.user.id not in ADMIN_IDS:
-        return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
-    clean_id = channel.replace("<#", "").replace(">", "")
-    if not clean_id.isdigit():
-        return await interaction.response.send_message("Please tag a valid channel!", ephemeral=True)
-    update_server_config(interaction.guild.id, "welcome_channel", int(clean_id))
-    await interaction.response.send_message("✅ Welcome channel successfully set!", ephemeral=True)
+    except Exception as e: print(f"ERROR in on_member_remove: {e}")
 
 @bot.tree.command(name="set_goodbye_channel", description="Set the goodbye channel")
 async def set_goodbye_channel(interaction: discord.Interaction, channel: str):
-    if interaction.user.id not in ADMIN_IDS:
-        return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
+    if interaction.user.id not in ADMIN_IDS: return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
     clean_id = channel.replace("<#", "").replace(">", "")
-    if not clean_id.isdigit():
-        return await interaction.response.send_message("Please tag a valid channel!", ephemeral=True)
+    if not clean_id.isdigit(): return await interaction.response.send_message("Please tag a valid channel!", ephemeral=True)
     update_server_config(interaction.guild.id, "goodbye_channel", int(clean_id))
     await interaction.response.send_message("✅ Goodbye channel successfully set!", ephemeral=True)
 
-@bot.tree.command(name="set_welcome_title", description="Set welcome embed title")
-async def set_welcome_title(interaction: discord.Interaction, title: str):
-    if interaction.user.id not in ADMIN_IDS:
-        return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
-    update_server_config(interaction.guild.id, "welcome_title", title)
-    await interaction.response.send_message("✅ Welcome title updated!", ephemeral=True)
-
-@bot.tree.command(name="set_welcome_message", description="Set welcome text/description")
-async def set_welcome_message(interaction: discord.Interaction, message: str):
-    if interaction.user.id not in ADMIN_IDS:
-        return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
-    update_server_config(interaction.guild.id, "welcome_message", message)
-    await interaction.response.send_message("✅ Welcome message updated!", ephemeral=True)
-
-@bot.tree.command(name="set_goodbye_title", description="Set goodbye embed title")
-async def set_goodbye_title(interaction: discord.Interaction, title: str):
-    if interaction.user.id not in ADMIN_IDS:
-        return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
-    update_server_config(interaction.guild.id, "goodbye_title", title)
-    await interaction.response.send_message("✅ Goodbye title updated!", ephemeral=True)
-
-@bot.tree.command(name="set_goodbye_message", description="Set goodbye text/description")
-async def set_goodbye_message(interaction: discord.Interaction, message: str):
-    if interaction.user.id not in ADMIN_IDS:
-        return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
-    update_server_config(interaction.guild.id, "goodbye_message", message)
-    await interaction.response.send_message("✅ Goodbye message updated!", ephemeral=True)
-
-@bot.tree.command(name="set_welcome_gif", description="Set the welcome GIF URL")
-async def set_welcome_gif(interaction: discord.Interaction, url: str):
-    if interaction.user.id not in ADMIN_IDS:
-        return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
-    update_server_config(interaction.guild.id, "welcome_gif", url)
-    await interaction.response.send_message("✅ Welcome GIF updated!", ephemeral=True)
-
 @bot.tree.command(name="set_goodbye_gif", description="Set the goodbye GIF URL")
 async def set_goodbye_gif(interaction: discord.Interaction, url: str):
-    if interaction.user.id not in ADMIN_IDS:
-        return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
+    if interaction.user.id not in ADMIN_IDS: return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
     update_server_config(interaction.guild.id, "goodbye_gif", url)
     await interaction.response.send_message("✅ Goodbye GIF updated!", ephemeral=True)
 
+@bot.tree.command(name="set_goodbye_message", description="Set goodbye text/description")
+async def set_goodbye_message(interaction: discord.Interaction, message: str):
+    if interaction.user.id not in ADMIN_IDS: return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
+    update_server_config(interaction.guild.id, "goodbye_message", message)
+    await interaction.response.send_message("✅ Goodbye message updated!", ephemeral=True)
+
+@bot.tree.command(name="set_goodbye_title", description="Set goodbye embed title")
+async def set_goodbye_title(interaction: discord.Interaction, title: str):
+    if interaction.user.id not in ADMIN_IDS: return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
+    update_server_config(interaction.guild.id, "goodbye_title", title)
+    await interaction.response.send_message("✅ Goodbye title updated!", ephemeral=True)
+
+@bot.tree.command(name="set_welcome_channel", description="Set the welcome channel")
+async def set_welcome_channel(interaction: discord.Interaction, channel: str):
+    if interaction.user.id not in ADMIN_IDS: return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
+    clean_id = channel.replace("<#", "").replace(">", "")
+    if not clean_id.isdigit(): return await interaction.response.send_message("Please tag a valid channel!", ephemeral=True)
+    update_server_config(interaction.guild.id, "welcome_channel", int(clean_id))
+    await interaction.response.send_message("✅ Welcome channel successfully set!", ephemeral=True)
+
+@bot.tree.command(name="set_welcome_gif", description="Set the welcome GIF URL")
+async def set_welcome_gif(interaction: discord.Interaction, url: str):
+    if interaction.user.id not in ADMIN_IDS: return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
+    update_server_config(interaction.guild.id, "welcome_gif", url)
+    await interaction.response.send_message("✅ Welcome GIF updated!", ephemeral=True)
+
+@bot.tree.command(name="set_welcome_message", description="Set welcome text/description")
+async def set_welcome_message(interaction: discord.Interaction, message: str):
+    if interaction.user.id not in ADMIN_IDS: return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
+    update_server_config(interaction.guild.id, "welcome_message", message)
+    await interaction.response.send_message("✅ Welcome message updated!", ephemeral=True)
+
+@bot.tree.command(name="set_welcome_title", description="Set welcome embed title")
+async def set_welcome_title(interaction: discord.Interaction, title: str):
+    if interaction.user.id not in ADMIN_IDS: return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
+    update_server_config(interaction.guild.id, "welcome_title", title)
+    await interaction.response.send_message("✅ Welcome title updated!", ephemeral=True)
+
+@bot.tree.command(name="say", description="Make the bot repeat your message")
+@app_commands.describe(text="The message to repeat")
+async def say(interaction: discord.Interaction, text: str):
+    if interaction.user.id not in ADMIN_IDS: return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
+    await interaction.channel.send(text)
+    await interaction.response.send_message("✅ Message sent!", ephemeral=True)
+
+@bot.tree.command(name="8ball", description="Ask a question and get a magical prediction")
+@app_commands.describe(question="The question to ask")
+async def ball8(interaction: discord.Interaction, question: str):
+    responses = ["Yes, absolutely!", "It is decidedly so.", "Without a doubt.", "Yes - definitely.", "Reply hazy, try again.", "Better not tell you now.", "My sources say no.", "Outlook not so good.", "Very doubtful.", "Definitely not!"]
+    answer = random.choice(responses)
+    embed = discord.Embed(title="🎱 Magic 8-Ball", color=discord.Color.dark_purple())
+    embed.add_field(name="Question", value=question, inline=False)
+    embed.add_field(name="Answer", value=answer, inline=False)
+    await interaction.response.send_message(embed=embed)
+
+@bot.tree.command(name="coinflip", description="Flip a coin: Heads or Tails")
+async def coinflip(interaction: discord.Interaction):
+    result = random.choice(["🪙 Heads", "🪙 Tails"])
+    embed = discord.Embed(title="🪙 Coin Flip", description=f"The result is: **{result}**!", color=discord.Color.gold())
+    await interaction.response.send_message(embed=embed)
+
+@bot.tree.command(name="fact", description="Get a random mind-blowing scientific/historical fact")
+async def fact(interaction: discord.Interaction):
+    facts = [
+        "Honey never spoils. Ancient Egyptian tombs have honey over 3,000 years old still edible!",
+        "A day on Venus is longer than its year. It rotates slower than it orbits the Sun.",
+        "Bananas grow towards the sun against gravity, known as negative geotropism.",
+        "Sharks have been on Earth longer than trees and Saturn's rings!",
+        "Cleopatra lived closer to the Moon landing than to the building of the Great Pyramid."
+    ]
+    selected = random.choice(facts)
+    embed = discord.Embed(title="💡 Mind-Blowing Fact", description=selected, color=discord.Color.magenta())
+    await interaction.response.send_message(embed=embed)
+
+@bot.tree.command(name="hack", description="Simulate a fake cyber attack on a user")
+@app_commands.describe(member="The user to hack")
+async def hack(interaction: discord.Interaction, member: discord.Member):
+    await interaction.response.send_message(f"💻 Initiating cyber attack on {member.mention}...", ephemeral=False)
+    msg = await interaction.original_response()
+    steps = [
+        "[■□□□□□□□□□] 10% - Bypassing firewall...",
+        "[■■■□□□□□□□] 30% - Extracting IP address...",
+        "[■■■■■□□□□□] 50% - Downloading secret folder...",
+        "[■■■■■■■■□□] 80% - Stealing Discord tokens...",
+        "[■■■■■■■■■■] 100% - Hack completed successfully! 🔓"
+    ]
+    for step in steps:
+        await asyncio.sleep(1.2)
+        await msg.edit(content=f"💻 Hacking {member.mention}...\n{step}")
+    passwords = ["123456", "ilovecats", "password123", "qwerty2026", "admin_007", "matrix_reloaded"]
+    fake_ip = f"{random.randint(10, 192)}.{random.randint(0, 255)}.{random.randint(0, 255)}.{random.randint(1, 254)}"
+    embed = discord.Embed(title="⚠️ Target Hacked!", description=f"Successfully breached **{member.display_name}**!", color=discord.Color.red())
+    embed.add_field(name="Fake IP", value=fake_ip, inline=True)
+    embed.add_field(name="Leaked Password", value=random.choice(passwords), inline=True)
+    await interaction.followup.send(embed=embed, ephemeral=False)
+
+@bot.tree.command(name="help", description="Shows the menu with all available bot commands")
+async def help_command(interaction: discord.Interaction):
+    embed = discord.Embed(title="📖 Bot Menu & Commands", description="Here is the sorted list of unique commands:", color=discord.Color.purple())
+    embed.add_field(name="🛠️ Admin Setup Commands", value="`/set_goodbye_channel` - Set goodbye channel\n`/set_goodbye_gif` - Set goodbye GIF URL\n`/set_goodbye_message` - Set goodbye message\n`/set_goodbye_title` - Set goodbye title\n`/set_welcome_channel` - Set welcome channel\n`/set_welcome_gif` - Set welcome GIF URL\n`/set_welcome_message` - Set welcome message\n`/set_welcome_title` - Set welcome title\n`/say` - Make the bot repeat text\n`/test` - Test welcome/goodbye", inline=False)
+    embed.add_field(name="🎮 Unique & Fun Commands (Alphabetical)", value="`/8ball` - Ask the magic ball a question\n`/coinflip` - Flip a coin (Heads or Tails)\n`/fact` - Get a random mind-blowing fact 💡\n`/hack` - Simulate a fake cyber attack 💻\n`/help` - Open this command menu\n`/match` - Create an interactive 1v1 match\n`/password` - Generate a secure random password 🔒\n`/ping` - Check the bot's latency 🏓\n`/poll` - Create a quick reaction poll\n`/quote` - Get a random epic ring statement\n`/roast` - Roast a user with style 🔥\n`/roll` - Roll a customizable dice\n`/rps` - Play Rock, Paper, Scissors\n`/serverinfo` - View detailed server info 📊\n`/settings` - View current server configuration\n`/ship` - Calculate love/friendship compatibility ❤️\n`/userinfo` - View detailed user info", inline=False)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+@bot.tree.command(name="match", description="Create a 1v1 match between two players")
+@app_commands.describe(player1="First player", player2="Second player")
+async def match(interaction: discord.Interaction, player1: discord.Member, player2: discord.Member):
+    embed = discord.Embed(title="⚔️ 1v1 MATCH", description=f"{player1.mention} VS {player2.mention}", color=discord.Color.gold())
+    embed.add_field(name="Player 1", value=player1.mention, inline=False)
+    embed.add_field(name="Player 2", value=player2.mention, inline=False)
+    t_str = discord.utils.utcnow().strftime('%d/%m/%Y - %H:%M')
+    embed.set_footer(text=f"Match created on {t_str}")
+
+    class MatchView(discord.ui.View):
+        def __init__(self):
+            super().__init__(timeout=None)
+
+        @discord.ui.button(label="Win P1", style=discord.ButtonStyle.green)
+        async def win_p1(self, interaction: discord.Interaction, button: discord.ui.Button):
+            w_embed = discord.Embed(title="🏆 VICTORY!", description=f"Winner is **{player1.display_name}**!", color=discord.Color.gold())
+            gif_url = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3ZwbHZ4aDZicXR3MHhveHBocHRvN3VrcDZ2cGR3bnNuc3l0dzN6dCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/26ufdipQqU2lhNA4g/giphy.gif"
+            w_embed.set_image(url=gif_url)
+            await interaction.response.send_message(embed=w_embed, ephemeral=False)
+
+        @discord.ui.button(label="Win P2", style=discord.ButtonStyle.green)
+        async def win_p2(self, interaction: discord.Interaction, button: discord.ui.Button):
+            w_embed = discord.Embed(title="🏆 VICTORY!", description=f"Winner is **{player2.display_name}**!", color=discord.Color.gold())
+            gif_url = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3ZwbHZ4aDZicXR3MHhveHBocHRvN3VrcDZ2cGR3bnNuc3l0dzN6dCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/26ufdipQqU2lhNA4g/giphy.gif"
+            w_embed.set_image(url=gif_url)
+            await interaction.response.send_message(embed=w_embed, ephemeral=False)
+
+        @discord.ui.button(label="Rematch", style=discord.ButtonStyle.blurple, emoji="🔄")
+        async def rematch(self, interaction: discord.Interaction, button: discord.ui.Button):
+            txt = f"🔄 Rematch requested between {player1.mention} and {player2.mention}!"
+            await interaction.response.send_message(txt, ephemeral=False)
+
+    await interaction.response.send_message(embed=embed, view=MatchView())
+
+@bot.tree.command(name="password", description="Generate a secure random password")
+@app_commands.describe(length="Length of the password (default 12)")
+async def password(interaction: discord.Interaction, length: int = 12):
+    if length < 6 or length > 30: return await interaction.response.send_message("Length must be between 6 and 30 characters!", ephemeral=True)
+    import string
+    chars = string.ascii_letters + string.digits + "!@#$%&*"
+    pwd = "".join(random.choice(chars) for _ in range(length))
+    embed = discord.Embed(title="🔒 Secure Password Generator", description=f"Your secure password:\n`{pwd}`", color=discord.Color.dark_red())
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+@bot.tree.command(name="ping", description="Check the bot's latency")
+async def ping(interaction: discord.Interaction):
+    latency = round(bot.latency * 1000)
+    embed = discord.Embed(title="🏓 Pong!", description=f"Latency is **{latency}ms**.", color=discord.Color.green())
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+@bot.tree.command(name="poll", description="Create a quick poll with a question")
+@app_commands.describe(question="The question for the poll")
+async def poll(interaction: discord.Interaction, question: str):
+    embed = discord.Embed(title="📊 Poll", description=question, color=discord.Color.blue())
+    embed.set_footer(text=f"Poll created by {interaction.user.display_name}")
+    await interaction.response.send_message(embed=embed)
+    message = await interaction.original_response()
+    await message.add_reaction("👍")
+    await message.add_reaction("👎")
+    await message.add_reaction("🤷‍♂️")
+
+@bot.tree.command(name="quote", description="Get a random epic quote or ring statement")
+async def quote(interaction: discord.Interaction):
+    quotes = [
+        "\"From opening rounds, intense exchanges!\" 🥊",
+        "\"The champion stands tall for the next clash!\" 🌍",
+        "\"A clear and decisive verdict on stage!\" ⚡",
+        "\"The official decision stands without hesitation!\" 🥇",
+        "\"Absolute peak of regions, a battle to remember!\" 🔥"
+    ]
+    selected = random.choice(quotes)
+    embed = discord.Embed(title="📜 Ring Quote", description=selected, color=discord.Color.teal())
+    await interaction.response.send_message(embed=embed)
+
+@bot.tree.command(name="roast", description="Roast a user with style")
+@app_commands.describe(member="The user you want to roast")
+async def roast(interaction: discord.Interaction, member: discord.Member):
+    roasts = [
+        f"Hey {member.mention}, if I wanted to commit suicide I'd climb to your ego and jump down to your IQ.",
+        f"{member.mention}, you're the reason the gene pool needs a lifeguard.",
+        f"I'd agree with you {member.mention}, but then we'd both be wrong.",
+        f"{member.mention} brings everyone so much joy... when they leave the room.",
+        f"You are proof that God has a sense of humor, {member.mention}."
+    ]
+    selected = random.choice(roasts)
+    embed = discord.Embed(title="🔥 Ultimate Roast", description=selected, color=discord.Color.orange())
+    await interaction.response.send_message(embed=embed)
+
+@bot.tree.command(name="roll", description="Roll a dice from 1 to 6 (or custom max)")
+@app_commands.describe(maximum="Maximum number on the dice (default 6)")
+async def roll(interaction: discord.Interaction, maximum: int = 6):
+    if maximum < 2: return await interaction.response.send_message("The dice must have at least 2 faces!", ephemeral=True)
+    result = random.randint(1, maximum)
+    embed = discord.Embed(title="🎲 Dice Roll", description=f"Rolled up to {maximum} and got: **{result}**! 🎯", color=discord.Color.orange())
+    await interaction.response.send_message(embed=embed)
+
+    @bot.tree.command(name="rps", description="Play Rock, Paper, Scissors against the bot")
+@app_commands.choices(choice=[
+    app_commands.Choice(name="Rock 🪨", value="rock"),
+    app_commands.Choice(name="Paper 📄", value="paper"),
+    app_commands.Choice(name="Scissors ✂️", value="scissors")
+])
+async def rps(interaction: discord.Interaction, choice: str):
+    options = ["rock", "paper", "scissors"]
+    bot_choice = random.choice(options)
+    if choice == bot_choice: result = "It's a tie! 🤝"
+    elif (choice == "rock" and bot_choice == "scissors") or (choice == "paper" and bot_choice == "rock") or (choice == "scissors" and bot_choice == "paper"): result = "You win! 🎉"
+    else: result = "You lose! 🤖"
+    embed = discord.Embed(title="✂️ Rock, Paper, Scissors", color=discord.Color.gold())
+    embed.add_field(name="Your Choice", value=choice.capitalize(), inline=True)
+    embed.add_field(name="Bot's Choice", value=bot_choice.capitalize(), inline=True)
+    embed.add_field(name="Result", value=result, inline=False)
+    await interaction.response.send_message(embed=embed)
+
+@bot.tree.command(name="serverinfo", description="View detailed information about this server")
+async def serverinfo(interaction: discord.Interaction):
+    guild = interaction.guild
+    embed = discord.Embed(title=f"📊 Server Info: {guild.name}", color=discord.Color.blue())
+    if guild.icon: embed.set_thumbnail(url=guild.icon.url)
+    embed.add_field(name="Owner", value=guild.owner, inline=True)
+    embed.add_field(name="Members", value=guild.member_count, inline=True)
+    c_date = guild.created_at.strftime('%d/%m/%Y')
+    embed.add_field(name="Created On", value=c_date, inline=True)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+@bot.tree.command(name="settings", description="Shows current server configuration and channels")
+async def settings(interaction: discord.Interaction):
+    conf = get_server_config(interaction.guild.id)
+    w_ch = f"<#{conf['welcome_channel']}>" if conf.get("welcome_channel") else "Not set"
+    g_ch = f"<#{conf['goodbye_channel']}>" if conf.get("goodbye_channel") else "Not set"
+    embed = discord.Embed(title="⚙️ Server Settings & Configuration", color=discord.Color.blue())
+    embed.add_field(name="Welcome Channel", value=w_ch, inline=True)
+    embed.add_field(name="Goodbye Channel", value=g_ch, inline=True)
+    embed.add_field(name="Welcome Title", value=conf.get("welcome_title"), inline=False)
+    embed.add_field(name="Goodbye Title", value=conf.get("goodbye_title"), inline=False)
+    embed.add_field(name="Welcome GIF", value=conf.get("welcome_gif") or "None", inline=False)
+    embed.add_field(name="Goodbye GIF", value=conf.get("goodbye_gif") or "None", inline=False)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+@bot.tree.command(name="ship", description="Calculate love compatibility between two users")
+@app_commands.describe(user1="First user", user2="Second user")
+async def ship(interaction: discord.Interaction, user1: discord.Member, user2: discord.Member):
+    percentage = random.randint(0, 100)
+    bars = "█" * (percentage // 10) + "─" * (10 - (percentage // 10))
+    if percentage > 80: comment = "A match made in heaven! 💕"
+    elif percentage > 50: comment = "There is definitely some chemistry! ✨"
+    else: comment = "Better keep them as friends... 💀"
+    embed = discord.Embed(title="❤️ Love & Friendship Calculator", description=f"Shipping **{user1.display_name}** & **{user2.display_name}**", color=discord.Color.pink())
+    val = f"`[{bars}]` **{percentage}%**\n{comment}"
+    embed.add_field(name="Compatibility", value=val, inline=False)
+    await interaction.response.send_message(embed=embed)
+
 @bot.tree.command(name="test", description="Test welcome or goodbye messages")
-@app_commands.choices(tipo=[app_commands.Choice(name="welcome", value="welcome"), app_commands.Choice(name="goodbye", value="goodbye")])
+@app_commands.choices(tipo=[
+    app_commands.Choice(name="welcome", value="welcome"),
+    app_commands.Choice(name="goodbye", value="goodbye")
+])
 async def test_command(interaction: discord.Interaction, tipo: str):
-    if interaction.user.id not in ADMIN_IDS:
-        return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
+    if interaction.user.id not in ADMIN_IDS: return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
     await interaction.response.defer(ephemeral=True)
     conf = get_server_config(interaction.guild.id)
     if tipo == "welcome":
@@ -222,9 +384,9 @@ async def test_command(interaction: discord.Interaction, tipo: str):
         if not ch_id: return await interaction.followup.send("Set welcome channel first!", ephemeral=True)
         ch = interaction.guild.get_channel(int(ch_id))
         if not ch: return await interaction.followup.send("Channel not found!", ephemeral=True)
-        member_count = interaction.guild.member_count
+        m_count = interaction.guild.member_count
         title = conf["welcome_title"].replace("{user}", interaction.user.name).replace("{server}", interaction.guild.name)
-        desc = conf["welcome_message"].replace("{user}", interaction.user.mention).replace("{server}", interaction.guild.name).replace("{member_count}", str(member_count))
+        desc = conf["welcome_message"].replace("{user}", interaction.user.mention).replace("{server}", interaction.guild.name).replace("{member_count}", str(m_count))
         embed = discord.Embed(title=title, description=desc, color=discord.Color.green())
         if conf.get("welcome_gif"): embed.set_image(url=conf["welcome_gif"])
         await ch.send(embed=embed)
@@ -241,162 +403,18 @@ async def test_command(interaction: discord.Interaction, tipo: str):
         await ch.send(embed=embed)
         await interaction.followup.send("✅ Goodbye test sent!", ephemeral=True)
 
-@bot.tree.command(name="settings", description="Shows current server configuration and channels")
-async def settings(interaction: discord.Interaction):
-    conf = get_server_config(interaction.guild.id)
-    w_ch = f"<#{conf['welcome_channel']}>" if conf.get("welcome_channel") else "Not set"
-    g_ch = f"<#{conf['goodbye_channel']}>" if conf.get("goodbye_channel") else "Not set"
-    embed = discord.Embed(title="⚙️ Server Settings & Configuration", color=discord.Color.blue())
-    embed.add_field(name="Welcome Channel", value=w_ch, inline=True)
-    embed.add_field(name="Goodbye Channel", value=g_ch, inline=True)
-    embed.add_field(name="Welcome Title", value=conf.get("welcome_title"), inline=False)
-    embed.add_field(name="Goodbye Title", value=conf.get("goodbye_title"), inline=False)
-    embed.add_field(name="Welcome GIF", value=conf.get("welcome_gif") or "None", inline=False)
-    embed.add_field(name="Goodbye GIF", value=conf.get("goodbye_gif") or "None", inline=False)
+@bot.tree.command(name="userinfo", description="View detailed information about a user")
+@app_commands.describe(member="The user you want to check")
+async def userinfo(interaction: discord.Interaction, member: discord.Member = None):
+    if member is None: member = interaction.user
+    embed = discord.Embed(title=f"👤 User Info for {member.display_name}", color=discord.Color.blurple())
+    embed.set_thumbnail(url=member.display_avatar.url)
+    embed.add_field(name="ID", value=member.id, inline=True)
+    j_date = member.joined_at.strftime('%d/%m/%Y')
+    embed.add_field(name="Joined Server", value=j_date, inline=True)
+    c_date = member.created_at.strftime('%d/%m/%Y')
+    embed.add_field(name="Account Created", value=c_date, inline=True)
     await interaction.response.send_message(embed=embed, ephemeral=True)
-
-@bot.tree.command(name="help", description="Shows the menu with all available bot commands")
-async def help_command(interaction: discord.Interaction):
-    embed = discord.Embed(title="📖 Bot Menu & Commands", description="Here is the list of all available commands:", color=discord.Color.purple())
-    embed.add_field(
-        name="🛠️ Admin Setup Commands",
-        value=(
-            "`/set_welcome_channel` - Set welcome channel\n"
-            "`/set_goodbye_channel` - Set goodbye channel\n"
-            "`/set_welcome_title` - Set welcome embed title\n"
-            "`/set_welcome_message` - Set welcome message\n"
-            "`/set_goodbye_title` - Set goodbye embed title\n"
-            "`/set_goodbye_message` - Set goodbye message\n"
-            "`/set_welcome_gif` - Set welcome GIF URL\n"
-            "`/set_goodbye_gif` - Set goodbye GIF URL\n"
-            "`/test` - Test welcome or goodbye message"
-        ),
-        inline=False
-    )
-    embed.add_field(
-        name="🎮 Fun & Utility Commands",
-        value=(
-            "`/match` - Create a 1v1 match between two players with buttons\n"
-            "`/8ball` - Ask a question and get a magical prediction\n"
-            "`/testa_o_croce` - Flip a coin (Heads or Tails)\n"
-            "`/frase_casuale` - Get a random epic ring quote\n"
-            "`/roll` - 🎲 Roll a dice\n"
-            "`/poll` - 📊 Create a quick poll\n"
-            "`/userinfo` - 👤 View user details\n"
-            "`/settings` - View current server configuration\n"
-            "`/help` - Open this menu"
-        ),
-        inline=False
-    )
-    await interaction.response.send_message(embed=embed, ephemeral=True)
-
-@bot.tree.command(name="match", description="Create a 1v1 match between two players")
-@app_commands.describe(player1="The first player", player2="The second player")
-async def match(interaction: discord.Interaction, player1: discord.Member, player2: discord.Member):
-    embed = discord.Embed(title="⚔️ 1v1 MATCH", description=f"{player1.mention} VS {player2.mention}", color=discord.Color.gold())
-    embed.add_field(name="Player 1", value=player1.mention, inline=False)
-    embed.add_field(name="Player 2", value=player2.mention, inline=False)
-    embed.set_footer(text=f"Match created on {discord.utils.utcnow().strftime('%d/%m/%Y - %H:%M')}")
-
-    class MatchView(discord.ui.View):
-        def __init__(self):
-            super().__init__(timeout=None)
-
-        @discord.ui.button(label="Win P1", style=discord.ButtonStyle.green)
-        async def win_p1(self, interaction: discord.Interaction, button: discord.ui.Button):
-            win_embed = discord.Embed(title="🏆 VICTORY!", description=f"The winner of the match is **{player1.display_name}**!", color=discord.Color.gold())
-            win_embed.set_image(url="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3ZwbHZ4aDZicXR3MHhveHBocHRvN3VrcDZ2cGR3bnNuc3l0dzN6dCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/26ufdipQqU2lhNA4g/giphy.gif")
-            await interaction.response.send_message(embed=win_embed, ephemeral=False)
-
-        @discord.ui.button(label="Win P2", style=discord.ButtonStyle.green)
-        async def win_p2(self, interaction: discord.Interaction, button: discord.ui.Button):
-            win_embed = discord.Embed(title="🏆 VICTORY!", description=f"The winner of the match is **{player2.display_name}**!", color=discord.Color.gold())
-            win_embed.set_image(url="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3ZwbHZ4aDZicXR3MHhveHBocHRvN3VrcDZ2cGR3bnNuc3l0dzN6dCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/26ufdipQqU2lhNA4g/giphy.gif")
-            await interaction.response.send_message(embed=win_embed, ephemeral=False)
-
-        @discord.ui.button(label="Rematch", style=discord.ButtonStyle.blurple, emoji="🔄")
-        async def rematch(self, interaction: discord.Interaction, button: discord.ui.Button):
-            await interaction.response.send_message(f"🔄 Rematch requested between {player1.mention} and {player2.mention}!", ephemeral=False)
-
-    await interaction.response.send_message(embed=embed, view=MatchView())
-
-@bot.tree.command(name="8ball", description="Ask a question and get a magical prediction")
-@app_commands.describe(question="The question you want to ask")
-async def ball8(interaction: discord.Interaction, question: str):
-    responses = [
-        "Yes, absolutely!", "It is decidedly so.", "Without a doubt.", "Yes - definitely.",
-        "Reply hazy, try again.", "Better not tell you now.", "My sources say no.",
-        "Outlook not so good.", "Very doubtful.", "Definitely not!"
-    ]
-    answer = random.choice(responses)
-    embed = discord.Embed(title="🎱 Magic 8-Ball", color=discord.Color.dark_purple())
-    embed.add_field(name="Question", value=question, inline=False)
-    embed.add_field(name="Answer", value=answer, inline=False)
-    await interaction.response.send_message(embed=embed)
-
-@bot.tree.command(name="testa_o_croce", description="Flip a coin: Heads or Tails")
-async def testa_o_croce(interaction: discord.Interaction):
-    result = random.choice(["🪙 Heads", "🪙 Tails"])
-    embed = discord.Embed(title="🪙 Coin Flip", description=f"The result is: **{result}**!", color=discord.Color.gold())
-    await interaction.response.send_message(embed=embed)
-
-@bot.tree.command(name="frase_casuale", description="Get a random epic quote or ring statement")
-async def frase_casuale(interaction: discord.Interaction):
-    quotes = [
-        "\"From the opening rounds, the fight delivered intense exchanges!\" 🥊",
-        "\"The champion stands tall, ready for the next legendary clash!\" 🌍",
-        "\"A clear and decisive verdict on the professional division stage!\" ⚡",
-        "\"The official decision stands without hesitation!\" 🥇",
-        "\"Absolute peak of their regions, a battle to remember forever!\" 🔥"
-    ]
-    quote = random.choice(quotes)
-    embed = discord.Embed(title="📜 Ring Quote", description=quote, color=discord.Color.teal())
-    await interaction.response.send_message(embed=embed)
-
-@bot.tree.command(name="roll", description="Roll a dice from 1 to 6 (or custom max)")
-@app_commands.describe(maximum="Maximum number on the dice (default 6)")
-async def roll(interaction: discord.Interaction, maximum: int = 6):
-    if maximum < 2: return await interaction.response.send_message("The dice must have at least 2 faces!", ephemeral=True)
-    result = random.randint(1, maximum)
-    embed = discord.Embed(title="🎲 Dice Roll", description=f"You rolled a dice up to {maximum} and got: **{result}**! 🎯", color=discord.Color.orange())
-    await interaction.response.send_message(embed=embed)
-
-@bot.tree.command(name="poll", description="Create a quick poll with a question")
-@app_commands.describe(question="The question for the poll")
-async def poll(interaction: discord.Interaction, question: str):
-    embed = discord.Embed(title="📊 Poll", description=question, color=discord.Color.blue())
-    embed.set_footer(text=f"Poll created by {interaction.user.display_name}")
-    await interaction.response.send_message(embed=embed)
-    message = await interaction.original_response()
-    await message.add_reaction("👍")
-    await message.add_reaction("👎")
-    await message.add_reaction("🤷‍♂️")
-
-@bot.tree.command(
-    name="userinfo", 
-    description="View user info"
-)
-async def userinfo(
-    interaction: discord.Interaction, 
-    member: discord.Member = None
-):
-    if member is None:
-        member = interaction.user
-        
-    u_name = member.display_name
-    u_av = member.display_avatar.url
-    u_id = str(member.id)
-    
-    embed = discord.Embed(
-        title=f"👤 User: {u_name}", 
-        color=discord.Color.blurple()
-    )
-    embed.set_thumbnail(url=u_av)
-    embed.add_field(name="ID", value=u_id, inline=True)
-    
-    await interaction.response.send_message(
-        embed=embed, 
-        ephemeral=True
-    )
 
 bot.run(os.environ['TOKEN'])
+    
