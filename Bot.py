@@ -372,16 +372,31 @@ async def poll(interaction: discord.Interaction, question: str):
     await message.add_reaction("👎")
     await message.add_reaction("🤷‍♂️")
 
-@bot.tree.command(name="userinfo", description="View detailed information about a user")
-@app_commands.describe(member="The user you want to check")
-async def userinfo(interaction: discord.Interaction, member: discord.Member = None):
-    if member is None: 
+@bot.tree.command(
+    name="userinfo", 
+    description="View user info"
+)
+async def userinfo(
+    interaction: discord.Interaction, 
+    member: discord.Member = None
+):
+    if member is None:
         member = interaction.user
-    embed = discord.Embed(title=f"👤 User Info for {member.display_name}", color=discord.Color.blurple())
-    embed.set_thumbnail(url=member.display_avatar.url)
-    embed.add_field(name="ID", value=member.id, inline=True)
-    embed.add_field(name="Joined Server", value=member.joined_at.strftime('%d/%m/%Y'), inline=True)
-    embed.add_field(name="Account Created", value=member.created_at.strftime('%d/%m/%Y'), inline=True)
-    await interaction.response.send_message(embed=embed, ephemeral=True)
+        
+    u_name = member.display_name
+    u_av = member.display_avatar.url
+    u_id = str(member.id)
+    
+    embed = discord.Embed(
+        title=f"👤 User: {u_name}", 
+        color=discord.Color.blurple()
+    )
+    embed.set_thumbnail(url=u_av)
+    embed.add_field(name="ID", value=u_id, inline=True)
+    
+    await interaction.response.send_message(
+        embed=embed, 
+        ephemeral=True
+    )
 
 bot.run(os.environ['TOKEN'])
