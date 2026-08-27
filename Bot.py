@@ -373,9 +373,6 @@ async def poll(interaction: discord.Interaction, question: str):
     await message.add_reaction("🤷‍♂️")
 
 @bot.tree.command(name="userinfo", description="View detailed information about a user")
-@app_commands.describe(member="The user you
-
-                       @bot.tree.command(name="userinfo", description="View detailed information about a user")
 @app_commands.describe(member="The user you want to check")
 async def userinfo(interaction: discord.Interaction, member: discord.Member = None):
     if member is None: 
