@@ -374,3 +374,17 @@ async def poll(interaction: discord.Interaction, question: str):
 
 @bot.tree.command(name="userinfo", description="View detailed information about a user")
 @app_commands.describe(member="The user you
+
+                       @bot.tree.command(name="userinfo", description="View detailed information about a user")
+@app_commands.describe(member="The user you want to check")
+async def userinfo(interaction: discord.Interaction, member: discord.Member = None):
+    if member is None: 
+        member = interaction.user
+    embed = discord.Embed(title=f"👤 User Info for {member.display_name}", color=discord.Color.blurple())
+    embed.set_thumbnail(url=member.display_avatar.url)
+    embed.add_field(name="ID", value=member.id, inline=True)
+    embed.add_field(name="Joined Server", value=member.joined_at.strftime('%d/%m/%Y'), inline=True)
+    embed.add_field(name="Account Created", value=member.created_at.strftime('%d/%m/%Y'), inline=True)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+bot.run(os.environ['TOKEN'])
