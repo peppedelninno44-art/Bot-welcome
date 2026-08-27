@@ -313,7 +313,7 @@ async def roll(interaction: discord.Interaction, maximum: int = 6):
     result = random.randint(1, maximum)
     embed = discord.Embed(title="🎲 Dice Roll", description=f"Rolled up to {maximum} and got: **{result}**! 🎯", color=discord.Color.orange())
     await interaction.response.send_message(embed=embed)
-@bot.tree.command(name="rps", description="Play Rock, Paper, Scissors against the bot 
+@bot.tree.command(name="rps", description="Play Rock, Paper, Scissors against the bot")
 @app_commands.choices(choice=[
     app_commands.Choice(name="Rock 🪨", value="rock"),
     app_commands.Choice(name="Paper 📄", value="paper"),
