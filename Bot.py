@@ -6,6 +6,7 @@ from discord import app_commands
 import os
 import json
 import random
+import psycopg2
 
 class SimpleHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -21,33 +22,69 @@ def run_server():
 threading.Thread(target=run_server, daemon=True).start()
 
 ADMIN_IDS = [1171135456306536450, 924641550133248000]
-CONFIG_FILE = "server_config.json"
-announcement_channels = {}
 
-intents = discord.Intents.default()
-intents.message_content = True
-intents.members = True
-bot = commands.Bot(command_prefix='!', intents=intents)
+# --- DATABASE CONNECTION (Cloud Persistent Supabase) ---
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
-# --- MEMORY PROTECTION (Impostazioni persistenti) ---
+def get_db_connection():
+    return psycopg2.connect(DATABASE_URL, sslmode='require')
+
+def init_db():
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS server_config (
+                guild_id TEXT PRIMARY KEY,
+                config_data JSONB
+            )
+        """)
+        conn.commit()
+        cur.close()
+        conn.close()
+        print("Database Supabase connected and initialized successfully!")
+    except Exception as e:
+        print(f"Database connection error: {e}")
+
+init_db()
+
+# --- MEMORY PROTECTION WITH SUPABASE ---
 def load_config():
-    if os.path.exists(CONFIG_FILE):
-        try:
-            with open(CONFIG_FILE, "r") as f:
-                return json.load(f)
-        except:
-            return {}
-    return {}
+    config = {}
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT guild_id, config_data FROM server_config")
+        rows = cur.fetchall()
+        for row in rows:
+            config[str(row[0])] = row[1]
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"Error loading config: {e}")
+    return config
 
-def save_config(config):
-    with open(CONFIG_FILE, "w") as f:
-        json.dump(config, f, indent=4)
+def save_config_guild(guild_id, guild_data):
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO server_config (guild_id, config_data) 
+            VALUES (%s, %s)
+            ON CONFLICT (guild_id) 
+            DO UPDATE SET config_data = EXCLUDED.config_data
+        """, (str(guild_id), json.dumps(guild_data)))
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"Error saving config: {e}")
 
 def get_server_config(guild_id):
     config = load_config()
     str_id = str(guild_id)
     if str_id not in config:
-        config[str_id] = {
+        default_data = {
             "welcome_channel": None,
             "welcome_title": "Welcome!",
             "welcome_message": "WELCOME {user} TO THE {server}! You are our {member_count}th member! ENJOY!!!",
@@ -57,17 +94,19 @@ def get_server_config(guild_id):
             "goodbye_message": "{user} has left the server.",
             "goodbye_gif": ""
         }
-        save_config(config)
+        save_config_guild(guild_id, default_data)
+        return default_data
     return config[str_id]
 
 def update_server_config(guild_id, key, value):
-    config = load_config()
-    str_id = str(guild_id)
-    if str_id not in config:
-        get_server_config(guild_id)
-        config = load_config()
-    config[str_id][key] = value
-    save_config(config)
+    conf = get_server_config(guild_id)
+    conf[key] = value
+    save_config_guild(guild_id, conf)
+
+intents = discord.Intents.default()
+intents.message_content = True
+intents.members = True
+bot = commands.Bot(command_prefix='!', intents=intents)
 
 # --- WELCOME EVENT ---
 @bot.event
@@ -262,11 +301,12 @@ async def help_command(interaction: discord.Interaction):
         name="🎮 Fun & Utility Commands",
         value=(
             "`/match` - Create a 1v1 match between two players with buttons\n"
-            "`/chance` - Calculate win probabilities between two players\n"
-            "`/8ball` - Ask a question to the magic ball\n"
+            "`/8ball` - Ask a question and get a magical prediction\n"
             "`/testa_o_croce` - Flip a coin (Heads or Tails)\n"
             "`/frase_casuale` - Get a random epic ring quote\n"
-            "`/set_announcement_channel` - Set announcement channel\n"
+            "`/roll` - 🎲 Roll a dice\n"
+            "`/poll` - 📊 Create a quick poll\n"
+            "`/userinfo` - 👤 View user details\n"
             "`/settings` - View current server configuration\n"
             "`/help` - Open this menu"
         ),
@@ -318,47 +358,36 @@ async def match(interaction: discord.Interaction, player1: discord.Member, playe
 
     await interaction.response.send_message(embed=embed, view=MatchView())
 
-# --- 2. /chance COMMAND ---
-@bot.tree.command(name="chance", description="Calculate win probabilities between two players")
-@app_commands.describe(player1="First player", player2="Second player")
-async def chance(interaction: discord.Interaction, player1: discord.Member, player2: discord.Member):
-    p1_chance = random.randint(15, 85)
-    p2_chance = 100 - p1_chance
-    
-    embed = discord.Embed(title="🎲 Match Probability / Chance", color=discord.Color.magenta())
-    embed.add_field(name=player1.display_name, value=f"Win Chance: **{p1_chance}%**", inline=True)
-    embed.add_field(name=player2.display_name, value=f"Win Chance: **{p2_chance}%**", inline=True)
-    
-    await interaction.response.send_message(embed=embed)
-
-# --- 3. /8ball COMMAND ---
+# --- 2. /8ball COMMAND ---
 @bot.tree.command(name="8ball", description="Ask a question and get a magical prediction")
 @app_commands.describe(question="The question you want to ask")
 async def ball8(interaction: discord.Interaction, question: str):
     responses = [
-        "Sì, assolutamente!",
-        "È molto probabile.",
-        "Senza dubbio.",
-        "Le probabilità sono a favore.",
-        "Chiedi di nuovo più tardi...",
-        "Non ci farei affidamento.",
-        "Molto improbabile.",
-        "Assolutamente no!"
+        "Yes, absolutely!",
+        "It is decidedly so.",
+        "Without a doubt.",
+        "Yes - definitely.",
+        "Reply hazy, try again.",
+        "Better not tell you now.",
+        "My sources say no.",
+        "Outlook not so good.",
+        "Very doubtful.",
+        "Definitely not!"
     ]
     answer = random.choice(responses)
     embed = discord.Embed(title="🎱 Magic 8-Ball", color=discord.Color.dark_purple())
-    embed.add_field(name="Domanda", value=question, inline=False)
-    embed.add_field(name="Risposta", value=answer, inline=False)
+    embed.add_field(name="Question", value=question, inline=False)
+    embed.add_field(name="Answer", value=answer, inline=False)
     await interaction.response.send_message(embed=embed)
 
-# --- 4. /testa_o_croce COMMAND ---
+# --- 3. /testa_o_croce COMMAND ---
 @bot.tree.command(name="testa_o_croce", description="Flip a coin: Heads or Tails")
 async def testa_o_croce(interaction: discord.Interaction):
-    result = random.choice(["🪙 Testa (Heads)", "🪙 Croce (Tails)"])
-    embed = discord.Embed(title="🪙 Lancio della Moneta", description=f"È uscito: **{result}**!", color=discord.Color.gold())
+    result = random.choice(["🪙 Heads", "🪙 Tails"])
+    embed = discord.Embed(title="🪙 Coin Flip", description=f"The result is: **{result}**!", color=discord.Color.gold())
     await interaction.response.send_message(embed=embed)
 
-# --- 5. /frase_casuale COMMAND ---
+# --- 4. /frase_casuale COMMAND ---
 @bot.tree.command(name="frase_casuale", description="Get a random epic quote or ring statement")
 async def frase_casuale(interaction: discord.Interaction):
     quotes = [
@@ -372,22 +401,11 @@ async def frase_casuale(interaction: discord.Interaction):
     embed = discord.Embed(title="📜 Ring Quote", description=quote, color=discord.Color.teal())
     await interaction.response.send_message(embed=embed)
 
-# --- 6. /set_announcement_channel COMMAND ---
-@bot.tree.command(name="set_announcement_channel", description="Set the channel for match announcements")
-@app_commands.describe(channel="The channel where announcements will be sent")
-async def set_announcement_channel(interaction: discord.Interaction, channel: discord.TextChannel):
-    announcement_channels[interaction.guild.id] = channel.id
-    await interaction.response.send_message(f"✅ Announcement channel successfully set to {channel.mention}!", ephemeral=True)
-
-# --- BOT STARTUP ---
-@bot.event
-async def on_ready():
-    print(f"Logged in as {bot.user} (ID: {bot.user.id})")
-    try:
-        synced = await bot.tree.sync()
-        print(f"Synced {len(synced)} command(s).")
-    except Exception as e:
-        print(e)
-
-bot.run(os.environ['TOKEN'])
-        
+# --- 5. /roll COMMAND ---
+@bot.tree.command(name="roll", description="Roll a dice from 1 to 6 (or custom max)")
+@app_commands.describe(maximum="Maximum number on the dice (default 6)")
+async def roll(interaction: discord.Interaction, maximum: int = 6):
+    if maximum < 2:
+        return await interaction.response.send_message("The dice must have at least 2 faces!", ephemeral=True)
+    result = random.randint(1, maximum)
+    emb
