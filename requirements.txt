@@ -1,3 +1,4 @@
 discord.py
 requests
 Pillow
+psycopg2-binary
