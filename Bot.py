@@ -319,7 +319,7 @@ async def roll(interaction: discord.Interaction, maximum: int = 6):
     app_commands.Choice(name="Rock 🪨", value="rock"),
     app_commands.Choice(name="Paper 📄", value="paper"),
     app_commands.Choice(name="Scissors ✂️", value="scissors")
-])
+])   
 async def rps(interaction: discord.Interaction, choice: str):
     options = ["rock", "paper", "scissors"]
     bot_choice = random.choice(options)
