@@ -549,8 +549,9 @@ async def on_message(message: discord.Message):
 
                 url = "https://api.groq.com/openai/v1/chat/completions"
                 headers = {
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json"
+                    "Authorization": f"Bearer {api_key.strip()}",
+                    "Content-Type": "application/json",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
                 }
                 data = {
                     "model": "llama-3.3-70b-versatile",
@@ -567,8 +568,12 @@ async def on_message(message: discord.Message):
                     await message.channel.send(f"{message.author.mention}, {ai_text}")
 
             except Exception as e:
-                print(f"AI Error: {e}")
+                import traceback
+                traceback.print_exc()
                 await message.channel.send(f"{message.author.mention}, Sorry, I couldn't process that request right now!")
+
+    await bot.process_commands(message)
+    
 
     await bot.process_commands(message)
     
