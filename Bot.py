@@ -418,166 +418,69 @@ async def userinfo(interaction: discord.Interaction, member: discord.Member = No
     c_date = member.created_at.strftime('%d/%m/%Y')
     embed.add_field(name="Account Created", value=c_date, inline=True)
     await interaction.response.send_message(embed=embed, ephemeral=True)
-import discord
+ import discord
 from discord import app_commands
 from discord.ext import commands
 import random
 import os
 
 # ==========================================
-# 1. SISTEMA DI CONFESSIONI ANONIME
+# 1. CONFESSIONS SYSTEM (MULTI-SERVER)
 # ==========================================
-class ConfessionModal(discord.ui.Modal, title="Invia una Confessione Anonima"):
+class ConfessionModal(discord.ui.Modal, title="Send an Anonymous Confession"):
     confession_text = discord.ui.TextInput(
-        label="La tua confessione",
+        label="Your confession",
         style=discord.TextStyle.paragraph,
-        placeholder="Scrivi qui quello che vuoi confessare in modo anonimo...",
+        placeholder="Type what you want to confess anonymously here...",
         required=True,
         max_length=1000
     )
 
     async def on_submit(self, interaction: discord.Interaction):
-        # Sostituisci questo ID con l'ID del canale in cui vuoi pubblicare le confessioni
-        CONFESSION_CHANNEL_ID = 123456789012345678 
-        channel = interaction.guild.get_channel(CONFESSION_CHANNEL_ID)
+        s_conf = get_server_config(interaction.guild_id)
+        channel_id = s_conf.get("confession_channel")
         
+        if not channel_id:
+            return await interaction.response.send_message(
+                "❌ The confession channel has not been set up on this server yet! Ask an admin to use `/set_confessions_channel`.", 
+                ephemeral=True
+            )
+
+        channel = interaction.guild.get_channel(channel_id)
         if channel:
             embed = discord.Embed(
-                title="🔒 Nuova Confessione Anonima", 
+                title="🔒 New Anonymous Confession", 
                 description=self.confession_text.value, 
                 color=discord.Color.dark_purple()
             )
-            embed.set_footer(text="Inviata in modo totalmente anonimo.")
+            embed.set_footer(text="Sent totally anonymously.")
             await channel.send(embed=embed)
-            await interaction.response.send_message("✅ La tua confessione è stata inviata con successo!", ephemeral=True)
+            await interaction.response.send_message("✅ Your confession has been sent successfully!", ephemeral=True)
         else:
-            await interaction.response.send_message("❌ Errore: Canale delle confessioni non trovato.", ephemeral=True)
+            await interaction.response.send_message("❌ Error: The confession channel no longer exists.", ephemeral=True)
 
-@bot.tree.command(name="confessa", description="Invia una confessione anonima nel canale dedicato.")
-async def confessa(interaction: discord.Interaction):
+@bot.tree.command(name="confess", description="Send an anonymous confession to the dedicated server channel.")
+async def confess(interaction: discord.Interaction):
     await interaction.response.send_modal(ConfessionModal())
 
-
-# ==========================================
-# 2. SISTEMA DI TICKET CON PULSANTI
-# ==========================================
-class TicketView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
-
-    @discord.ui.button(label="🎫 Apri Ticket", style=discord.ButtonStyle.green, custom_id="open_ticket_button")
-    async def open_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
-        guild = interaction.guild
-        category = discord.utils.get(guild.categories, name="TICKET")
-        
-        if not category:
-            category = await guild.create_category("TICKET")
-
-        # Verifica se l'utente ha già un ticket aperto
-        channel_name = f"ticket-{interaction.user.name.lower()}"
-        existing_channel = discord.utils.get(guild.channels, name=channel_name)
-        if existing_channel:
-            return await interaction.response.send_message(f"❌ Hai già un ticket aperto qui: {existing_channel.mention}", ephemeral=True)
-
-        overwrites = {
-            guild.default_role: discord.PermissionOverwrite(view_channel=False),
-            interaction.user: discord.PermissionOverwrite(view_channel=True, send_messages=True),
-            guild.me: discord.PermissionOverwrite(view_channel=True, send_messages=True)
-        }
-
-        ticket_channel = await guild.create_text_channel(
-            channel_name,
-            category=category,
-            overwrites=overwrites
-        )
-
-        embed = discord.Embed(
-            title="🎫 Supporto Ticket", 
-            description=f"Ciao {interaction.user.mention}, spiegaci pure il tuo problema! Lo staff ti risponderà al più presto.\nClicca sul pulsante sottostante per chiudere il ticket.", 
-            color=discord.Color.blue()
-        )
-        await ticket_channel.send(embed=embed, view=CloseTicketView())
-        await interaction.response.send_message(f"✅ Il tuo ticket è stato creato: {ticket_channel.mention}", ephemeral=True)
-
-class CloseTicketView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
-
-    @discord.ui.button(label="🔒 Chiudi Ticket", style=discord.ButtonStyle.red, custom_id="close_ticket_button")
-    async def close_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_message("Chiusura del ticket in corso...")
-        await interaction.channel.delete()
-
-@bot.tree.command(name="setup_ticket", description="Invia il pannello per aprire i ticket (Solo Admin)")
+@bot.tree.command(name="set_confessions_channel", description="Set the channel for confessions (Admin Only)")
 @app_commands.checks.has_permissions(administrator=True)
-async def setup_ticket(interaction: discord.Interaction):
-    embed = discord.Embed(
-        title="💬 Centro Assistenza", 
-        description="Hai bisogno di supporto o desideri parlare con lo staff?\nClicca sul pulsante qui sotto per aprire un ticket privato.", 
-        color=discord.Color.gold()
-    )
-    await interaction.channel.send(embed=embed, view=TicketView())
-    await interaction.response.send_message("Pannello ticket inviato con successo!", ephemeral=True)
-
-
-# ==========================================
-# 3. SISTEMA DI XP & LIVELLI
-# ==========================================
-user_xp = {}  # Struttura dati per memorizzare l'XP {user_id: {"xp": 0, "level": 1}}
-
-def add_xp(user_id: int, amount: int):
-    if user_id not in user_xp:
-        user_xp[user_id] = {"xp": 0, "level": 1}
+async def set_confessions_channel(interaction: discord.Interaction, channel: discord.TextChannel):
+    config = load_config()
+    str_id = str(interaction.guild_id)
+    if str_id not in config:
+        config[str_id] = {}
     
-    user_xp[user_id]["xp"] += amount
-    next_level_xp = user_xp[user_id]["level"] * 100
-
-    if user_xp[user_id]["xp"] >= next_level_xp:
-        user_xp[user_id]["level"] += 1
-        return True, user_xp[user_id]["level"]
-    return False, user_xp[user_id]["level"]
-
-@bot.tree.command(name="rank", description="Mostra il tuo livello e la tua esperienza attuale.")
-async def rank(interaction: discord.Interaction, member: discord.Member = None):
-    target = member or interaction.user
-    data = user_xp.get(target.id, {"xp": 0, "level": 1})
+    config[str_id]["confession_channel"] = channel.id
+    save_config(config)
     
-    xp = data["xp"]
-    level = data["level"]
-    next_level_xp = level * 100
-
-    embed = discord.Embed(title=f"📊 Profilo di {target.display_name}", color=discord.Color.green())
-    embed.set_thumbnail(url=target.display_avatar.url)
-    embed.add_field(name="Livello", value=f"🏆 **{level}**", inline=True)
-    embed.add_field(name="Esperienza (XP)", value=f"⭐ **{xp}/{next_level_xp}**", inline=True)
-    
-    await interaction.response.send_message(embed=embed)
+    await interaction.response.send_message(f"✅ Confessions channel set to: {channel.mention}", ephemeral=True)
 
 
 # ==========================================
-# 4. GESTIONE EVENTO MESSAGGI (XP & IA / CHATBOT)
+# 2. TICKET SYSTEM WITH BUTTONS
 # ==========================================
-@bot.event
-async def on_message(message: discord.Message):
-    # Ignora i messaggi inviati dai bot
-    if message.author.bot:
-        return
-
-    # --- Assegnazione XP ---
-    gained_xp = random.randint(5, 15)
-    leveled_up, new_level = add_xp(message.author.id, gained_xp)
-    if leveled_up:
-        await message.channel.send(f"🎉 Complimenti {message.author.mention}, sei salito al **Livello {new_level}**!")
-
-    # --- Risposta IA / Chatbot al Tag del Bot ---
-    if bot.user in message.mentions:
-        # Pulisce il messaggio dal menzionamento
-        clean_content = message.content.replace(f"<@{bot.user.id}>", "").strip()
-        
-        if not clean_content:
-            await message.reply("Dimmi pure, come posso aiutarti?")
-        else:
-
-            
+class TicketView(discord.
+                 
 bot.run(os.environ['TOKEN'])
     
