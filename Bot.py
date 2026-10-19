@@ -475,13 +475,15 @@ async def set_confessions_channel(interaction: discord.Interaction, channel: dis
 # ==========================================
 # ==========================================
 # ==========================================
-# 2. SISTEMA DI TICKET CON BOTTONI
+
 # ==========================================
-class TicketModal(discord.ui.Modal, title="Crea un Ticket"):
+# 2. TICKET SYSTEM WITH BUTTONS (ENGLISH)
+# ==========================================
+class TicketModal(discord.ui.Modal, title="Create a Ticket"):
     reason = discord.ui.TextInput(
-        label="Motivo del ticket",
+        label="Reason for ticket",
         style=discord.TextStyle.paragraph,
-        placeholder="Spiega brevemente il motivo per cui apri il ticket...",
+        placeholder="Explain briefly why you are opening this ticket...",
         required=True,
         max_length=500
     )
@@ -501,41 +503,51 @@ class TicketModal(discord.ui.Modal, title="Crea un Ticket"):
         channel = await guild.create_text_channel(f"ticket-{interaction.user.name}", category=category, overwrites=overwrites)
         
         embed = discord.Embed(
-            title=f"🎫 Ticket di {interaction.user.display_name}",
-            description=f"**Motivo:** {self.reason.value}",
+            title=f"🎫 Ticket by {interaction.user.display_name}",
+            description=f"**Reason:** {self.reason.value}",
             color=discord.Color.blue()
         )
         await channel.send(embed=embed, content=f"{interaction.user.mention}")
-        await interaction.response.send_message(f"✅ Il tuo ticket è stato creato con successo: {channel.mention}", ephemeral=True)
+        await interaction.response.send_message(f"✅ Your ticket has been created: {channel.mention}", ephemeral=True)
 
 class TicketView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @discord.ui.button(label="Apri Ticket 🎫", style=discord.ButtonStyle.green, custom_id="open_ticket_button")
+    @discord.ui.button(label="Open Ticket 🎫", style=discord.ButtonStyle.green, custom_id="open_ticket_button")
     async def open_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_modal(TicketModal())
 
-@bot.tree.command(name="ticket", description="Crea il pannello per aprire i ticket")
+@bot.tree.command(name="ticket", description="Create the support ticket panel")
 @app_commands.checks.has_permissions(administrator=True)
 async def ticket(interaction: discord.Interaction):
     embed = discord.Embed(
-        title="🎫 Supporto Ticket",
-        description="Clicca sul bottone qui sotto per aprire un canale di supporto privato con lo staff.",
+        title="🎫 Support Tickets",
+        description="Click the button below to open a private support ticket with the staff.",
         color=discord.Color.green()
     )
     await interaction.channel.send(embed=embed, view=TicketView())
-    await interaction.response.send_message("✅ Pannello ticket creato con successo!", ephemeral=True)
+    await interaction.response.send_message("✅ Ticket panel created successfully!", ephemeral=True)
 
 # ==========================================
-# 3. INTELLIGENZA ARTIFICIALE (AI)
+# 3. CHAT AI RESPONSE ON MENTION (@Bot)
 # ==========================================
-@bot.tree.command(name="ai", description="Fai una domanda all'IA")
-@app_commands.describe(prompt="Scrivi la tua domanda")
-async def ai(interaction: discord.Interaction, prompt: str):
-    await interaction.response.send_message(f"{interaction.user.mention}, how are you?")
+@bot.event
+async def on_message(message: discord.Message):
+    if message.author.bot:
+        return
+
+    if bot.user in message.mentions:
+        content = message.content.replace(f'<@{bot.user.id}>', '').replace(f'<@!{bot.user.id}>', '').strip().lower()
+        
+        if "how are you" in content:
+            await message.channel.send(f"{message.author.mention}, I am doing great! How are you?")
+        else:
+            await message.channel.send(f"{message.author.mention}, Hello! How can I help you today?")
+
+    await bot.process_commands(message)
 
 # ==========================================
-# AVVIO DEL BOT
+# BOT STARTUP
 # ==========================================
 bot.run(os.environ['TOKEN'])
