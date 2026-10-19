@@ -526,7 +526,7 @@ async def ticket(interaction: discord.Interaction):
     await interaction.response.send_message("✅ Ticket panel created successfully!", ephemeral=True)
 
 # ==========================================
-# 3. CHAT AI RESPONSE ON MENTION (@Bot)
+# CHAT AI RESPONSE ON MENTION (@Bot) - GROQ
 # ==========================================
 @bot.event
 async def on_message(message: discord.Message):
@@ -542,36 +542,36 @@ async def on_message(message: discord.Message):
 
         async with message.channel.typing():
             try:
-                api_key = os.environ.get("GEMINI_API_KEY")
+                api_key = os.environ.get("GROQ_API_KEY") or os.environ.get("GEMINI_API_KEY")
                 if not api_key:
-                    await message.channel.send(f"{message.author.mention}, GEMINI_API_KEY is missing in Render settings!")
+                    await message.channel.send(f"{message.author.mention}, API key missing in Render settings!")
                     return
 
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
-                headers = {"Content-Type": "application/json"}
+                url = "https://api.groq.com/openai/v1/chat/completions"
+                headers = {
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json"
+                }
                 data = {
-                    "contents": [{
-                        "parts": [{
-                            "text": f"You are a helpful Discord bot. Respond concisely in English to the user. User says: {user_prompt}"
-                        }]
-                    }]
+                    "model": "llama-3.3-70b-versatile",
+                    "messages": [
+                        {"role": "system", "content": "You are a helpful Discord bot assistant. Respond concisely in English."},
+                        {"role": "user", "content": user_prompt}
+                    ]
                 }
                 
                 req = urllib.request.Request(url, data=json.dumps(data).encode('utf-8'), headers=headers)
                 with urllib.request.urlopen(req) as response:
                     res_data = json.loads(response.read().decode('utf-8'))
-                    ai_text = res_data['candidates'][0]['content']['parts'][0]['text']
+                    ai_text = res_data['choices'][0]['message']['content']
                     await message.channel.send(f"{message.author.mention}, {ai_text}")
 
-            except urllib.error.HTTPError as e:
-                error_body = e.read().decode('utf-8')
-                print(f"HTTP Error: {e.code} - {error_body}")
-                await message.channel.send(f"{message.author.mention}, sorry, I couldn't process that request right now!")
             except Exception as e:
-                print(f"General Error: {e}")
-                await message.channel.send(f"{message.author.mention}, sorry, I couldn't process that request right now!")
+                print(f"AI Error: {e}")
+                await message.channel.send(f"{message.author.mention}, Sorry, I couldn't process that request right now!")
 
     await bot.process_commands(message)
+    
 
 # ==========================================
 # BOT STARTUP
