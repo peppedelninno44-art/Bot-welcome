@@ -474,7 +474,8 @@ async def set_confessions_channel(interaction: discord.Interaction, channel: dis
 
 # ==========================================
 # ==========================================
-# 2. TICKET SYSTEM WITH BUTTONS
+# ==========================================
+# 2. SISTEMA DI TICKET CON BOTTONI
 # ==========================================
 class TicketModal(discord.ui.Modal, title="Crea un Ticket"):
     reason = discord.ui.TextInput(
@@ -529,14 +530,12 @@ async def ticket(interaction: discord.Interaction):
 # ==========================================
 # 3. INTELLIGENZA ARTIFICIALE (AI)
 # ==========================================
-@bot.tree.command(name="ai", description="Fai una domanda all'Intelligenza Artificiale")
-@app_commands.describe(prompt="Scrivi cosa vuoi chiedere all'IA")
+@bot.tree.command(name="ai", description="Fai una domanda all'IA")
+@app_commands.describe(prompt="Scrivi la tua domanda")
 async def ai(interaction: discord.Interaction, prompt: str):
-    await interaction.response.defer()
-    await interaction.followup.send(f"🤖 **Domanda:** {prompt}\n\n*Funzione IA attiva e pronta a rispondere!*")
+    await interaction.response.send_message(f"{interaction.user.mention}, how are you?")
 
 # ==========================================
 # AVVIO DEL BOT
 # ==========================================
 bot.run(os.environ['TOKEN'])
-
