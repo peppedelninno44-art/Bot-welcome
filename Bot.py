@@ -416,13 +416,7 @@ async def userinfo(interaction: discord.Interaction, member: discord.Member = No
     j_date = member.joined_at.strftime('%d/%m/%Y')
     embed.add_field(name="Joined Server", value=j_date, inline=True)
     c_date = member.created_at.strftime('%d/%m/%Y')
-    embed.add_field(name="Account Created", value=c_date, inline=True)
-    await interaction.response.send_message(embed=embed, ephemeral=True)
- import discord
-from discord import app_commands
-from discord.ext import commands
-import random
-import os
+    embed.add_field(name="Account Created", value=c_date, inline=Truawait interaction.response.send_message(embed=embed, ephemeral=True)
 
 # ==========================================
 # 1. CONFESSIONS SYSTEM (MULTI-SERVER)
