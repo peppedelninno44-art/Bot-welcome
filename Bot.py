@@ -479,10 +479,6 @@ async def set_confessions_channel(interaction: discord.Interaction, channel: dis
 # ==========================================
 import json
 import urllib.request
-
-# ==========================================
-import json
-import urllib.request
 import urllib.error
 
 # ==========================================
