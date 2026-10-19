@@ -477,64 +477,8 @@ async def set_confessions_channel(interaction: discord.Interaction, channel: dis
 # ==========================================
 
 # ==========================================
-# 2. TICKET SYSTEM WITH BUTTONS (ENGLISH)
-# ==========================================
-class TicketModal(discord.ui.Modal, title="Create a Ticket"):
-    reason = discord.ui.TextInput(
-        label="Reason for ticket",
-        style=discord.TextStyle.paragraph,
-        placeholder="Explain briefly why you are opening this ticket...",
-        required=True,
-        max_length=500
-    )
-
-    async def on_submit(self, interaction: discord.Interaction):
-        guild = interaction.guild
-        overwrites = {
-            guild.default_role: discord.PermissionOverwrite(view_channel=False),
-            interaction.user: discord.PermissionOverwrite(view_channel=True, send_messages=True, read_message_history=True),
-            guild.me: discord.PermissionOverwrite(view_channel=True, send_messages=True)
-        }
-        
-        category = discord.utils.get(guild.categories, name="Tickets")
-        if not category:
-            category = await guild.create_category("Tickets")
-            
-        channel = await guild.create_text_channel(f"ticket-{interaction.user.name}", category=category, overwrites=overwrites)
-        
-        embed = discord.Embed(
-            title=f"🎫 Ticket by {interaction.user.display_name}",
-            description=f"**Reason:** {self.reason.value}",
-            color=discord.Color.blue()
-        )
-        await channel.send(embed=embed, content=f"{interaction.user.mention}")
-        await interaction.response.send_message(f"✅ Your ticket has been created: {channel.mention}", ephemeral=True)
-
-class TicketView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
-
-    @discord.ui.button(label="Open Ticket 🎫", style=discord.ButtonStyle.green, custom_id="open_ticket_button")
-    async def open_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(TicketModal())
-
-@bot.tree.command(name="ticket", description="Create the support ticket panel")
-@app_commands.checks.has_permissions(administrator=True)
-async def ticket(interaction: discord.Interaction):
-    embed = discord.Embed(
-        title="🎫 Support Tickets",
-        description="Click the button below to open a private support ticket with the staff.",
-        color=discord.Color.green()
-    )
-    await interaction.channel.send(embed=embed, view=TicketView())
-    await interaction.response.send_message("✅ Ticket panel created successfully!", ephemeral=True)
-
-# ==========================================
-import google.generativeai as genai
-
-# Configurazione API Gemini
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-ai_model = genai.GenerativeModel('gemini-1.5-flash')
+import json
+import urllib.request
 
 # ==========================================
 # 3. CHAT AI RESPONSE ON MENTION (@Bot)
@@ -545,7 +489,6 @@ async def on_message(message: discord.Message):
         return
 
     if bot.user in message.mentions:
-        # Rimuove la menzione dal testo del messaggio
         user_prompt = message.content.replace(f'<@{bot.user.id}>', '').replace(f'<@!{bot.user.id}>', '').strip()
         
         if not user_prompt:
@@ -554,16 +497,31 @@ async def on_message(message: discord.Message):
 
         async with message.channel.typing():
             try:
-                # Genera la risposta usando l'IA di Gemini
-                prompt = f"You are a helpful and friendly Discord bot assistant. Respond concisely to the user in English. User query: {user_prompt}"
-                response = ai_model.generate_content(prompt)
+                api_key = os.environ.get("GEMINI_API_KEY")
+                if not api_key:
+                    await message.channel.send(f"{message.author.mention}, GEMINI_API_KEY is missing in Render settings!")
+                    return
+
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+                headers = {"Content-Type": "application/json"}
+                data = {
+                    "contents": [{
+                        "parts": [{
+                            "text": f"You are a helpful Discord bot. Respond concisely in English to the user. User says: {user_prompt}"
+                        }]
+                    }]
+                }
                 
-                await message.channel.send(f"{message.author.mention}, {response.text}")
+                req = urllib.request.Request(url, data=json.dumps(data).encode('utf-8'), headers=headers)
+                with urllib.request.urlopen(req) as response:
+                    res_data = json.loads(response.read().decode('utf-8'))
+                    ai_text = res_data['candidates'][0]['content']['parts'][0]['text']
+                    await message.channel.send(f"{message.author.mention}, {ai_text}")
+
             except Exception as e:
-                await message.channel.send(f"{message.author.mention}, sorry, I couldn't process that right now!")
+                await message.channel.send(f"{message.author.mention}, sorry, I couldn't process that request right now!")
 
     await bot.process_commands(message)
-    
 
 # ==========================================
 # BOT STARTUP
