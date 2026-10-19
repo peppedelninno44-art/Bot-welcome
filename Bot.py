@@ -475,7 +475,10 @@ async def set_confessions_channel(interaction: discord.Interaction, channel: dis
 # ==========================================
 # 2. TICKET SYSTEM WITH BUTTONS
 # ==========================================
-class TicketView(discord.
-                 
+class TicketView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
 bot.run(os.environ['TOKEN'])
+
     
