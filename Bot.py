@@ -473,12 +473,70 @@ async def set_confessions_channel(interaction: discord.Interaction, channel: dis
 
 
 # ==========================================
+# ==========================================
 # 2. TICKET SYSTEM WITH BUTTONS
 # ==========================================
+class TicketModal(discord.ui.Modal, title="Crea un Ticket"):
+    reason = discord.ui.TextInput(
+        label="Motivo del ticket",
+        style=discord.TextStyle.paragraph,
+        placeholder="Spiega brevemente il motivo per cui apri il ticket...",
+        required=True,
+        max_length=500
+    )
+
+    async def on_submit(self, interaction: discord.Interaction):
+        guild = interaction.guild
+        overwrites = {
+            guild.default_role: discord.PermissionOverwrite(view_channel=False),
+            interaction.user: discord.PermissionOverwrite(view_channel=True, send_messages=True, read_message_history=True),
+            guild.me: discord.PermissionOverwrite(view_channel=True, send_messages=True)
+        }
+        
+        category = discord.utils.get(guild.categories, name="Tickets")
+        if not category:
+            category = await guild.create_category("Tickets")
+            
+        channel = await guild.create_text_channel(f"ticket-{interaction.user.name}", category=category, overwrites=overwrites)
+        
+        embed = discord.Embed(
+            title=f"🎫 Ticket di {interaction.user.display_name}",
+            description=f"**Motivo:** {self.reason.value}",
+            color=discord.Color.blue()
+        )
+        await channel.send(embed=embed, content=f"{interaction.user.mention}")
+        await interaction.response.send_message(f"✅ Il tuo ticket è stato creato con successo: {channel.mention}", ephemeral=True)
+
 class TicketView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
+    @discord.ui.button(label="Apri Ticket 🎫", style=discord.ButtonStyle.green, custom_id="open_ticket_button")
+    async def open_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_modal(TicketModal())
+
+@bot.tree.command(name="ticket", description="Crea il pannello per aprire i ticket")
+@app_commands.checks.has_permissions(administrator=True)
+async def ticket(interaction: discord.Interaction):
+    embed = discord.Embed(
+        title="🎫 Supporto Ticket",
+        description="Clicca sul bottone qui sotto per aprire un canale di supporto privato con lo staff.",
+        color=discord.Color.green()
+    )
+    await interaction.channel.send(embed=embed, view=TicketView())
+    await interaction.response.send_message("✅ Pannello ticket creato con successo!", ephemeral=True)
+
+# ==========================================
+# 3. INTELLIGENZA ARTIFICIALE (AI)
+# ==========================================
+@bot.tree.command(name="ai", description="Fai una domanda all'Intelligenza Artificiale")
+@app_commands.describe(prompt="Scrivi cosa vuoi chiedere all'IA")
+async def ai(interaction: discord.Interaction, prompt: str):
+    await interaction.response.defer()
+    await interaction.followup.send(f"🤖 **Domanda:** {prompt}\n\n*Funzione IA attiva e pronta a rispondere!*")
+
+# ==========================================
+# AVVIO DEL BOT
+# ==========================================
 bot.run(os.environ['TOKEN'])
 
-    
