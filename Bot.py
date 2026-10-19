@@ -405,20 +405,20 @@ async def test_command(interaction: discord.Interaction, tipo: str):
         if conf.get("goodbye_gif"): embed.set_image(url=conf["goodbye_gif"])
         await ch.send(embed=embed)
         await interaction.followup.send("✅ Goodbye test sent!", ephemeral=True)
-
 @bot.tree.command(name="userinfo", description="View detailed information about a user")
 @app_commands.describe(member="The user you want to check")
 async def userinfo(interaction: discord.Interaction, member: discord.Member = None):
-    if member is None: member = interaction.user
+    if member is None:
+        member = interaction.user
     embed = discord.Embed(title=f"👤 User Info for {member.display_name}", color=discord.Color.blurple())
     embed.set_thumbnail(url=member.display_avatar.url)
     embed.add_field(name="ID", value=member.id, inline=True)
-    j_date = member.joined_at.strftime('%d/%m/%Y')
+    j_date = member.joined_at.strftime("%d/%m/%Y")
     embed.add_field(name="Joined Server", value=j_date, inline=True)
-    c_date = member.created_at.strftime('%d/%m/%Y')
-    embed.add_field(name="Account Created", value=c_date, inline=Truawait interaction.response.send_message(embed=embed, ephemeral=True)
+    c_date = member.created_at.strftime("%d/%m/%Y")
+    embed.add_field(name="Account Created", value=c_date, inline=True)
     await interaction.response.send_message(embed=embed, ephemeral=True)
-
+        
 # ==========================================
 # 1. CONFESSIONS SYSTEM (MULTI-SERVER)
 # ==========================================
