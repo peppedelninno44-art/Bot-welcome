@@ -1,3 +1,10 @@
+import json
+import os
+import urllib.error
+import urllib.request
+import discord
+from discord import app_commands
+from discord.ext import commands
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import threading
 import discord
@@ -465,21 +472,58 @@ async def set_confessions_channel(interaction: discord.Interaction, channel: dis
     str_id = str(interaction.guild_id)
     if str_id not in config:
         config[str_id] = {}
-    
-    config[str_id]["confession_channel"] = channel.id
-    save_config(config)
-    
-    await interaction.response.send_message(f"✅ Confessions channel set to: {channel.mention}", ephemeral=True)
+    # ==========================================
+# 2. TICKET SYSTEM WITH BUTTONS (ENGLISH)
+# ==========================================
+class TicketModal(discord.ui.Modal, title="Create a Ticket"):
+    reason = discord.ui.TextInput(
+        label="Reason for ticket",
+        style=discord.TextStyle.paragraph,
+        placeholder="Explain briefly why you are opening this ticket...",
+        required=True,
+        max_length=500
+    )
 
+    async def on_submit(self, interaction: discord.Interaction):
+        guild = interaction.guild
+        overwrites = {
+            guild.default_role: discord.PermissionOverwrite(view_channel=False),
+            interaction.user: discord.PermissionOverwrite(view_channel=True, send_messages=True, read_message_history=True),
+            guild.me: discord.PermissionOverwrite(view_channel=True, send_messages=True)
+        }
+        
+        category = discord.utils.get(guild.categories, name="Tickets")
+        if not category:
+            category = await guild.create_category("Tickets")
+            
+        channel = await guild.create_text_channel(f"ticket-{interaction.user.name}", category=category, overwrites=overwrites)
+        
+        embed = discord.Embed(
+            title=f"🎫 Ticket by {interaction.user.display_name}",
+            description=f"**Reason:** {self.reason.value}",
+            color=discord.Color.blue()
+        )
+        await channel.send(embed=embed, content=f"{interaction.user.mention}")
+        await interaction.response.send_message(f"✅ Your ticket has been created: {channel.mention}", ephemeral=True)
 
-# ==========================================
-# ==========================================
-# ==========================================
+class TicketView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
 
-# ==========================================
-import json
-import urllib.request
-import urllib.error
+    @discord.ui.button(label="Open Ticket 🎫", style=discord.ButtonStyle.green, custom_id="open_ticket_button")
+    async def open_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_modal(TicketModal())
+
+@bot.tree.command(name="ticket", description="Create the support ticket panel")
+@app_commands.checks.has_permissions(administrator=True)
+async def ticket(interaction: discord.Interaction):
+    embed = discord.Embed(
+        title="🎫 Support Tickets",
+        description="Click the button below to open a private support ticket with the staff.",
+        color=discord.Color.green()
+    )
+    await interaction.channel.send(embed=embed, view=TicketView())
+    await interaction.response.send_message("✅ Ticket panel created successfully!", ephemeral=True)
 
 # ==========================================
 # 3. CHAT AI RESPONSE ON MENTION (@Bot)
@@ -503,7 +547,6 @@ async def on_message(message: discord.Message):
                     await message.channel.send(f"{message.author.mention}, GEMINI_API_KEY is missing in Render settings!")
                     return
 
-                # Endpoint per la generazione di testo con Gemini
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
                 headers = {"Content-Type": "application/json"}
                 data = {
@@ -523,7 +566,7 @@ async def on_message(message: discord.Message):
             except urllib.error.HTTPError as e:
                 error_body = e.read().decode('utf-8')
                 print(f"HTTP Error: {e.code} - {error_body}")
-                await message.channel.send(f"{message.author.mention}, AI Error ({e.code}): Check Render logs!")
+                await message.channel.send(f"{message.author.mention}, sorry, I couldn't process that request right now!")
             except Exception as e:
                 print(f"General Error: {e}")
                 await message.channel.send(f"{message.author.mention}, sorry, I couldn't process that request right now!")
@@ -534,3 +577,4 @@ async def on_message(message: discord.Message):
 # BOT STARTUP
 # ==========================================
 bot.run(os.environ['TOKEN'])
+                
