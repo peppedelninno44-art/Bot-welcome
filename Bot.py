@@ -481,6 +481,11 @@ import json
 import urllib.request
 
 # ==========================================
+import json
+import urllib.request
+import urllib.error
+
+# ==========================================
 # 3. CHAT AI RESPONSE ON MENTION (@Bot)
 # ==========================================
 @bot.event
@@ -502,7 +507,8 @@ async def on_message(message: discord.Message):
                     await message.channel.send(f"{message.author.mention}, GEMINI_API_KEY is missing in Render settings!")
                     return
 
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+                # Endpoint per la generazione di testo con Gemini
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
                 headers = {"Content-Type": "application/json"}
                 data = {
                     "contents": [{
@@ -518,7 +524,12 @@ async def on_message(message: discord.Message):
                     ai_text = res_data['candidates'][0]['content']['parts'][0]['text']
                     await message.channel.send(f"{message.author.mention}, {ai_text}")
 
+            except urllib.error.HTTPError as e:
+                error_body = e.read().decode('utf-8')
+                print(f"HTTP Error: {e.code} - {error_body}")
+                await message.channel.send(f"{message.author.mention}, AI Error ({e.code}): Check Render logs!")
             except Exception as e:
+                print(f"General Error: {e}")
                 await message.channel.send(f"{message.author.mention}, sorry, I couldn't process that request right now!")
 
     await bot.process_commands(message)
