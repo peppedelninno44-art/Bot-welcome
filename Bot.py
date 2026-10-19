@@ -530,6 +530,13 @@ async def ticket(interaction: discord.Interaction):
     await interaction.response.send_message("✅ Ticket panel created successfully!", ephemeral=True)
 
 # ==========================================
+import google.generativeai as genai
+
+# Configurazione API Gemini
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+ai_model = genai.GenerativeModel('gemini-1.5-flash')
+
+# ==========================================
 # 3. CHAT AI RESPONSE ON MENTION (@Bot)
 # ==========================================
 @bot.event
@@ -538,14 +545,25 @@ async def on_message(message: discord.Message):
         return
 
     if bot.user in message.mentions:
-        content = message.content.replace(f'<@{bot.user.id}>', '').replace(f'<@!{bot.user.id}>', '').strip().lower()
+        # Rimuove la menzione dal testo del messaggio
+        user_prompt = message.content.replace(f'<@{bot.user.id}>', '').replace(f'<@!{bot.user.id}>', '').strip()
         
-        if "how are you" in content:
-            await message.channel.send(f"{message.author.mention}, I am doing great! How are you?")
-        else:
-            await message.channel.send(f"{message.author.mention}, Hello! How can I help you today?")
+        if not user_prompt:
+            await message.channel.send(f"{message.author.mention}, yes? How can I help you?")
+            return
+
+        async with message.channel.typing():
+            try:
+                # Genera la risposta usando l'IA di Gemini
+                prompt = f"You are a helpful and friendly Discord bot assistant. Respond concisely to the user in English. User query: {user_prompt}"
+                response = ai_model.generate_content(prompt)
+                
+                await message.channel.send(f"{message.author.mention}, {response.text}")
+            except Exception as e:
+                await message.channel.send(f"{message.author.mention}, sorry, I couldn't process that right now!")
 
     await bot.process_commands(message)
+    
 
 # ==========================================
 # BOT STARTUP
