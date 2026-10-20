@@ -1,3 +1,7 @@
+import json
+import random
+import os
+import threading
 import os
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -484,7 +488,7 @@ async def setuproles(interaction: discord.Interaction):
             created += 1
         except Exception:
             pass
-    await interaction.followup.send(f"✅ Successfully created **{created} colored roles**
+    await interaction.followup.send(f"✅ Successfully created **{created} colored roles**!")
     
 
 @bot.tree.command(name="setupchannels", description="Creates structured and meaningful community channels")
