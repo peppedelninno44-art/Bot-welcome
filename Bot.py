@@ -556,7 +556,7 @@ async def on_message(message: discord.Message):
             await message.channel.send(f"{message.author.mention}, yes? How can I help you?")
             return
 
-                        async with message.channel.typing():
+        async with message.channel.typing():
             api_key = os.environ.get("GROQ_API_KEY")
             if not api_key:
                 await message.channel.send(f"{message.author.mention} Manca la chiave GROQ_API_KEY su Render!")
@@ -582,7 +582,8 @@ async def on_message(message: discord.Message):
                 ai_text = res_data['choices'][0]['message']['content']
                 await message.channel.send(f"{message.author.mention} {ai_text}")
 
-    await bot.process_commands(message)
+        await bot.process_commands(message)
+    
 
 
 import threading
