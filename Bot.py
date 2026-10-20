@@ -539,7 +539,13 @@ async def conspiracy(interaction: discord.Interaction):
         "Socks don't disappear in the wash; they turn into Tupperware lids.",
         "Cats can speak fluent English, they just choose to judge you in silence."
     ]
-    await interaction.response.send_message(f"🕵️‍♂️ **Global Conspiracy Theory:** {random.choice(theories)}")
+    embed = discord.Embed(
+        title="🕵️‍♂️ Global Conspiracy Theory",
+        description=random.choice(theories),
+        color=discord.Color.dark_theme()
+    )
+    embed.set_footer(text=f"Requested by {interaction.user.display_name}")
+    await interaction.response.send_message(embed=embed)
 
 @bot.tree.command(name="globalweather", description="Check global absurd weather")
 async def globalweather(interaction: discord.Interaction):
@@ -549,17 +555,13 @@ async def globalweather(interaction: discord.Interaction):
         "A 100% chance of extreme laziness worldwide 🛏️",
         "Neon rain clouds forming above major cities 🌆"
     ]
-    await interaction.response.send_message(f"🌍 **World Weather Report:** {random.choice(weather)}")
-
-@bot.tree.command(name="worldexcuse", description="Generate a global excuse")
-async def worldexcuse(interaction: discord.Interaction):
-    excuses = [
-        "My internet cable was chewed up by an international space hamster.",
-        "I was busy calculating the exact digits of Pi backwards.",
-        "An alien spaceship blocked my Wi-Fi signal.",
-        "I got stuck in a parallel universe where Mondays don't exist."
-    ]
-    await interaction.response.send_message(f"🌐 **Global Excuse:** \"{random.choice(excuses)}\"")
+    embed = discord.Embed(
+        title="🌍 World Weather Report",
+        description=random.choice(weather),
+        color=discord.Color.blue()
+    )
+    embed.set_footer(text=f"Requested by {interaction.user.display_name}")
+    await interaction.response.send_message(embed=embed)
 
 @bot.tree.command(name="globalroast", description="Roast a member globally")
 @app_commands.describe(member="Member to roast")
@@ -571,17 +573,12 @@ async def globalroast(interaction: discord.Interaction, member: discord.Member =
         "gets lost using Google Maps inside a straight corridor.",
         "looks like an NPC whose dialogue was deleted by mistake."
     ]
-    await interaction.response.send_message(f"🔥 {target} {random.choice(roasts)}")
-
-@bot.tree.command(name="mysterybox", description="Open a mystery box for a prize")
-async def mysterybox(interaction: discord.Interaction):
-    prizes = [
-        "You opened a box full of ancient golden memes! 🪙",
-        "Oh no! It was a box full of angry digital wasps! 🐝",
-        "You found an infinite supply of virtual pizza! 🍕",
-        "The box was completely empty... just like your Monday morning brain. 🧠",
-        "You unlocked absolute cosmic power! (For 5 seconds) ✨"
-    ]
-    await interaction.response.send_message(f"📦 {interaction.user.mention} opened the mystery box and found: **{random.choice(prizes)}**")
-
+    embed = discord.Embed(
+        title="🔥 Global Roast",
+        description=f"{target} {random.choice(roasts)}",
+        color=discord.Color.red()
+    )
+    embed.set_footer(text=f"Requested by {interaction.user.display_name}")
+    await interaction.response.send_message(embed=embed)
+    
 bot.run(os.environ['TOKEN'])
