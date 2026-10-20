@@ -1,3 +1,30 @@
+import os
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
+import discord
+from discord import app_commands
+from discord.ext import commands
+
+# --- KEEP-ALIVE SERVER FOR RENDER ---
+class SimpleHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-type", "text/plain")
+        self.end_headers()
+        self.wfile.write(b"Bot is running successfully!")
+
+    def log_message(self, format, *args):
+        pass  # Disable continuous log spam
+
+def run_server():
+    port = int(os.environ.get("PORT", 10000))
+    server = HTTPServer(("0.0.0.0", port), SimpleHandler)
+    server.serve_forever()
+
+# Start HTTP server in background thread
+threading.Thread(target=run_server, daemon=True).start()
+
+# --- YOUR BOT CODE STARTS BELOW ---
 
 ADMIN_IDS = [1171135456306536450, 924641550133248000]
 CONFIG_FILE = "config.json"
