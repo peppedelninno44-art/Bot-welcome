@@ -453,46 +453,81 @@ async def ticket(interaction: discord.Interaction):
     await interaction.channel.send(embed=embed, view=TicketView())
     await interaction.response.send_message("✅ Ticket panel created successfully!", ephemeral=True)
 
-@bot.command(name="setuproles")
-@commands.has_permissions(manage_roles=True)
-async def setuproles(ctx):
-    await ctx.send("⚙️ Creating 20 community roles... Please wait!")
+# --- NUOVI COMANDI SLASH PER RUOLI (COLORATI) E CANALI ---
+
+@bot.tree.command(name="setuproles", description="Creates structured and colored community roles")
+@app_commands.checks.has_permissions(administrator=True)
+async def setuproles(interaction: discord.Interaction):
+    await interaction.response.defer(thinking=True)
     roles_to_create = [
-        "👑 Owner", "🛡️ Administrator", "🔨 Moderator", "🤖 Bot", 
-        "⭐ VIP Member", "boost: Nitro Booster", "📢 Announcements", "🎮 Gamer", 
-        "🎨 Artist", "🎵 Musician", "💻 Developer", "💬 Active Chatter", 
-        "🔴 Streamer", "💤 AFK", "🔒 Muted", "🎉 Event Host", 
-        "🟢 Online", "🟡 Away", "🔴 Busy", "👻 Member"
+        {"name": "👑 | Founder", "color": discord.Color.gold()},
+        {"name": "🛡️ | Admin", "color": discord.Color.red()},
+        {"name": "⚔️ | Moderator", "color": discord.Color.orange()},
+        {"name": "🤖 | Bot", "color": discord.Color.blue()},
+        {"name": "💎 | Server Booster", "color": discord.Color.magenta()},
+        {"name": "⭐ | VIP / Veteran", "color": discord.Color.purple()},
+        {"name": "👥 | Member", "color": discord.Color.green()},
+        {"name": "📢 | Announcement Ping", "color": discord.Color.light_grey()},
+        {"name": "🎁 | Giveaway Ping", "color": discord.Color.light_grey()},
+        {"name": "🎥 | Stream & Video Ping", "color": discord.Color.light_grey()},
+        {"name": "🎉 | Event Ping", "color": discord.Color.light_grey()},
+        {"name": "🎮 | Gamer", "color": discord.Color.teal()},
+        {"name": "🎨 | Artist / Creator", "color": discord.Color.dark_orange()},
+        {"name": "💻 | Developer / Tech", "color": discord.Color.dark_blue()},
+        {"name": "🎵 | Music Lover", "color": discord.Color.dark_magenta()},
+        {"name": "🎬 | Anime & Movies", "color": discord.Color.dark_purple()}
     ]
-    for role_name in roles_to_create:
+    created = 0
+    for r in roles_to_create:
         try:
-            await ctx.guild.create_role(name=role_name)
+            await interaction.guild.create_role(name=r["name"], color=r["color"])
+            created += 1
         except Exception:
             pass
-    await ctx.send("✅ Successfully created 20 roles for your community!")
+    await interaction.followup.send(f"✅ Successfully created **{created} colored roles**
+    
 
-@bot.command(name="setupchannels")
-@commands.has_permissions(manage_channels=True)
-async def setupchannels(ctx):
-    await ctx.send("⚙️ Creating 35 channels across organized categories... Please wait!")
-    categories = {
-        "📌 ── INFORMATION ──": ["rules", "announcements", "welcome", "faq", "server-boosts", "roles-info", "partnerships"],
-        "💬 ── COMMUNITY ──": ["general", "lounge", "media-share", "memes", "bot-commands", "suggestions", "confessions", "polls", "counting", "gaw-and-events"],
-        "🎮 ── GAMING ZONE ──": ["gaming-chat", "clips-and-highlights", "LFG-party", "minecraft", "valorant", "league-of-legends", "fortnite"],
-        "🔊 ── VOICE CHATS ──": ["Lounge 1", "Lounge 2", "Gaming Room", "Music Room", "Stream Room", "Quiet Zone"],
-        "🔒 ── STAFF AREA ──": ["staff-chat", "mod-logs", "admin-only", "ticket-logs"]
-    }
-    for cat_name, channels in categories.items():
-        category = await ctx.guild.create_category(cat_name)
-        for channel_name in channels:
-            if "Voice" in cat_name or "ROOM" in cat_name.upper():
-                await ctx.guild.create_voice_channel(channel_name, category=category)
-            else:
-                await ctx.guild.create_text_channel(channel_name, category=category)
-    await ctx.send("✅ Successfully created 35 channels and categories for your global server!")
+@bot.tree.command(name="setupchannels", description="Creates structured and meaningful community channels")
+@app_commands.checks.has_permissions(administrator=True)
+async def setupchannels(interaction: discord.Interaction):
+    await interaction.response.defer(thinking=True)
+    guild = interaction.guild
+    try:
+        cat_info = await guild.create_category("📌 ┆ WELCOME & INFO")
+        await guild.create_text_channel("📖・rules", category=cat_info)
+        await guild.create_text_channel("📢・announcements", category=cat_info)
+        await guild.create_text_channel("🎭・get-roles", category=cat_info)
+        await guild.create_text_channel("🎁・events-giveaways", category=cat_info)
 
-@bot.command(name="conspiracy")
-async def conspiracy(ctx):
+        cat_comm = await guild.create_category("💬 ┆ COMMUNITY CHAT")
+        await guild.create_text_channel("💬・general", category=cat_comm)
+        await guild.create_text_channel("🤖・bot-commands", category=cat_comm)
+        await guild.create_text_channel("😂・memes-and-media", category=cat_comm)
+        await guild.create_text_channel("💡・suggestions", category=cat_comm)
+
+        cat_topics = await guild.create_category("🎯 ┆ TOPIC HUBS")
+        await guild.create_text_channel("🎮・gaming-discussion", category=cat_topics)
+        await guild.create_text_channel("🎬・movies-and-anime", category=cat_topics)
+        await guild.create_text_channel("💻・tech-and-setups", category=cat_topics)
+        await guild.create_text_channel("🎨・art-and-creativity", category=cat_topics)
+
+        cat_support = await guild.create_category("🎫 ┆ HELP & SUPPORT")
+        await guild.create_text_channel("❓・faq", category=cat_support)
+        await guild.create_text_channel("🎫・open-a-ticket", category=cat_support)
+
+        cat_voice = await guild.create_category("🔊 ┆ VOICE CHANNELS")
+        await guild.create_voice_channel("💬・General Lounge", category=cat_voice)
+        await guild.create_voice_channel("🎮・Gaming Squad #1", category=cat_voice)
+        await guild.create_voice_channel("🎮・Gaming Squad #2", category=cat_voice)
+        await guild.create_voice_channel("🎧・Chill & Music", category=cat_voice)
+        await guild.create_voice_channel("💤・AFK", category=cat_voice)
+
+        await interaction.followup.send("✅ **Community channels and categories created successfully!**")
+    except Exception as e:
+        await interaction.followup.send(f"❌ Error creating channels: {e}")
+
+@bot.tree.command(name="conspiracy", description="Get a random conspiracy theory")
+async def conspiracy(interaction: discord.Interaction):
     theories = [
         "Pigeons are government drones charging their batteries on power lines.",
         "Your toaster is secretly streaming your breakfast habits to the cloud.",
@@ -500,41 +535,42 @@ async def conspiracy(ctx):
         "Socks don't disappear in the wash; they turn into Tupperware lids.",
         "Cats can speak fluent English, they just choose to judge you in silence."
     ]
-    await ctx.send(f"🕵️‍♂️ **Global Conspiracy Theory:** {random.choice(theories)}")
+    await interaction.response.send_message(f"🕵️‍♂️ **Global Conspiracy Theory:** {random.choice(theories)}")
 
-@bot.command(name="globalweather")
-async def globalweather(ctx):
+@bot.tree.command(name="globalweather", description="Check global absurd weather")
+async def globalweather(interaction: discord.Interaction):
     weather = [
         "Raining meatballs over Western Europe 🍝",
         "Heavy gravity storms reported in sector 7 🪐",
         "A 100% chance of extreme laziness worldwide 🛏️",
         "Neon rain clouds forming above major cities 🌆"
     ]
-    await ctx.send(f"🌍 **World Weather Report:** {random.choice(weather)}")
+    await interaction.response.send_message(f"🌍 **World Weather Report:** {random.choice(weather)}")
 
-@bot.command(name="worldexcuse")
-async def worldexcuse(ctx):
+@bot.tree.command(name="worldexcuse", description="Generate a global excuse")
+async def worldexcuse(interaction: discord.Interaction):
     excuses = [
         "My internet cable was chewed up by an international space hamster.",
         "I was busy calculating the exact digits of Pi backwards.",
         "An alien spaceship blocked my Wi-Fi signal.",
         "I got stuck in a parallel universe where Mondays don't exist."
     ]
-    await ctx.send(f"🌐 **Global Excuse:** \"{random.choice(excuses)}\"")
+    await interaction.response.send_message(f"🌐 **Global Excuse:** \"{random.choice(excuses)}\"")
 
-@bot.command(name="globalroast")
-async def globalroast(ctx, member: discord.Member = None):
-    target = member.mention if member else ctx.author.mention
+@bot.tree.command(name="globalroast", description="Roast a member globally")
+@app_commands.describe(member="Member to roast")
+async def globalroast(interaction: discord.Interaction, member: discord.Member = None):
+    target = member.mention if member else interaction.user.mention
     roasts = [
         "has the processing speed of a Windows 95 computer running Crysis.",
         "brings down the average IQ of the entire international server.",
         "gets lost using Google Maps inside a straight corridor.",
         "looks like an NPC whose dialogue was deleted by mistake."
     ]
-    await ctx.send(f"🔥 {target} {random.choice(roasts)}")
+    await interaction.response.send_message(f"🔥 {target} {random.choice(roasts)}")
 
-@bot.command(name="mysterybox")
-async def mysterybox(ctx):
+@bot.tree.command(name="mysterybox", description="Open a mystery box for a prize")
+async def mysterybox(interaction: discord.Interaction):
     prizes = [
         "You opened a box full of ancient golden memes! 🪙",
         "Oh no! It was a box full of angry digital wasps! 🐝",
@@ -542,6 +578,6 @@ async def mysterybox(ctx):
         "The box was completely empty... just like your Monday morning brain. 🧠",
         "You unlocked absolute cosmic power! (For 5 seconds) ✨"
     ]
-    await ctx.send(f"📦 {ctx.author.mention} opened the mystery box and found: **{random.choice(prizes)}**")
+    await interaction.response.send_message(f"📦 {interaction.user.mention} opened the mystery box and found: **{random.choice(prizes)}**")
 
 bot.run(os.environ['TOKEN'])
