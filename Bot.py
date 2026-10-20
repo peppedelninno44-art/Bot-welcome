@@ -8,9 +8,6 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-# ==========================================
-# 1. HTTP SERVER FOR RENDER (KEEP ALIVE)
-# ==========================================
 class SimpleHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -28,9 +25,6 @@ def run_server():
 
 threading.Thread(target=run_server, daemon=True).start()
 
-# ==========================================
-# 2. CONFIGURATIONS & INTENTS
-# ==========================================
 ADMIN_IDS = [1171135456306536450, 924641550133248000]
 CONFIG_FILE = "config.json"
 
@@ -551,4 +545,3 @@ async def mysterybox(ctx):
     await ctx.send(f"📦 {ctx.author.mention} opened the mystery box and found: **{random.choice(prizes)}**")
 
 bot.run(os.environ['TOKEN'])
-    
