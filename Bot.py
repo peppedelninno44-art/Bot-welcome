@@ -8,15 +8,14 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+# Server keep-alive ultraleggero per Render
 class SimpleHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
-        self.wfile.write(b"Bot is alive!")
-
-    def do_HEAD(self):
-        self.send_response(200)
-        self.end_headers()
+        self.wfile.write(b"OK")
+    def log_message(self, format, *args):
+        pass # Disattiva i log di traffico spam nel terminale
 
 def run_server():
     port = int(os.environ.get("PORT", 10000))
