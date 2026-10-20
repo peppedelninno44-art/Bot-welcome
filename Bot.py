@@ -556,35 +556,36 @@ async def on_message(message: discord.Message):
             await message.channel.send(f"{message.author.mention}, yes? How can I help you?")
             return
 
-        async with message.channel.typing():
-                    try:
-                    api_key = os.environ.get("GROQ_API_KEY")
-                    if not api_key:
+                async with message.channel.typing():
+            try:
+                api_key = os.environ.get("GROQ_API_KEY")
+                if not api_key:
                     await message.channel.send(f"{message.author.mention} Manca la chiave GROQ_API_KEY su Render!")
                     return
 
-                    url = "https://api.groq.com/openai/v1/chat/completions"
-                    headers = {
+                url = "https://api.groq.com/openai/v1/chat/completions"
+                headers = {
                     "Authorization": f"Bearer {api_key.strip()}",
                     "Content-Type": "application/json",
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-            }
-            data = {
-                "model": "llama-3.3-70b-versatile",
-                "messages": [
-                    {"role": "system", "content": "Sei un assistente utile su Discord."},
-                    {"role": "user", "content": user_prompt}
-                ]
-            }
+                }
+                data = {
+                    "model": "llama-3.3-70b-versatile",
+                    "messages": [
+                        {"role": "system", "content": "Sei un assistente utile su Discord."},
+                        {"role": "user", "content": user_prompt}
+                    ]
+                }
 
-            req = urllib.request.Request(url, data=json.dumps(data).encode('utf-8'), headers=headers)
-            with urllib.request.urlopen(req) as response:
-                res_data = json.loads(response.read().decode('utf-8'))
-                ai_text = res_data['choices'][0]['message']['content']
-                await message.channel.send(f"{message.author.mention} {ai_text}")
+                req = urllib.request.Request(url, data=json.dumps(data).encode('utf-8'), headers=headers)
+                with urllib.request.urlopen(req) as response:
+                    res_data = json.loads(response.read().decode('utf-8'))
+                    ai_text = res_data['choices'][0]['message']['content']
+                    await message.channel.send(f"{message.author.mention} {ai_text}")
 
-        except Exception as e:
-            await message.channel.send(f"{message.author.mention} Errore durante la richiesta: {e}")
+            except Exception as e:
+                await message.channel.send(f"{message.author.mention} Errore durante la richiesta: {e}")
+                
                         
     await bot.process_commands(message)
 import threading
