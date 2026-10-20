@@ -548,7 +548,6 @@ async def on_message(message: discord.Message):
                     return
 
                 url = "https://api.groq.com/openai/v1/chat/completions"
-                
                 headers = {
                     "Authorization": f"Bearer {api_key.strip()}",
                     "Content-Type": "application/json",
@@ -575,8 +574,6 @@ async def on_message(message: discord.Message):
 
     await bot.process_commands(message)
     
-
-    await bot.process_commands(message)
     
 
 # ==========================================
