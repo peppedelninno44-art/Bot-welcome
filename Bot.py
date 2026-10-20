@@ -558,16 +558,16 @@ async def on_message(message: discord.Message):
 
         async with message.channel.typing():
                     try:
-            api_key = os.environ.get("GROQ_API_KEY")
-            if not api_key:
-                await message.channel.send(f"{message.author.mention} Manca la chiave GROQ_API_KEY su Render!")
-                return
+                    api_key = os.environ.get("GROQ_API_KEY")
+                    if not api_key:
+                    await message.channel.send(f"{message.author.mention} Manca la chiave GROQ_API_KEY su Render!")
+                    return
 
-            url = "https://api.groq.com/openai/v1/chat/completions"
-            headers = {
-                "Authorization": f"Bearer {api_key.strip()}",
-                "Content-Type": "application/json",
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+                    url = "https://api.groq.com/openai/v1/chat/completions"
+                    headers = {
+                    "Authorization": f"Bearer {api_key.strip()}",
+                    "Content-Type": "application/json",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
             }
             data = {
                 "model": "llama-3.3-70b-versatile",
