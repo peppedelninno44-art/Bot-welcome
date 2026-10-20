@@ -1,3 +1,4 @@
+
 import os
 import json
 import random
@@ -568,3 +569,5 @@ async def mysterybox(ctx):
 # 7. BOT RUN
 # ==========================================
 bot.run(os.environ['TOKEN'])
+
+```
