@@ -1,4 +1,3 @@
-
 import os
 import json
 import random
@@ -27,7 +26,6 @@ def run_server():
     server = HTTPServer(("0.0.0.0", port), SimpleHandler)
     server.serve_forever()
 
-# Start background web server for Render
 threading.Thread(target=run_server, daemon=True).start()
 
 # ==========================================
@@ -83,9 +81,6 @@ async def on_ready():
     except Exception as e: print(e)
     print(f"Logged in as {bot.user.name}")
 
-# ==========================================
-# 3. MEMBER EVENTS (WELCOME & GOODBYE ONLY)
-# ==========================================
 @bot.event
 async def on_member_join(member):
     try:
@@ -117,9 +112,6 @@ async def on_member_remove(member):
                 await channel.send(embed=embed)
     except Exception as e: print(f"ERROR in on_member_remove: {e}")
 
-# ==========================================
-# 4. SLASH COMMANDS & SETUP UTILITIES
-# ==========================================
 @bot.tree.command(name="set_goodbye_channel", description="Set the goodbye channel")
 async def set_goodbye_channel(interaction: discord.Interaction, channel: str):
     if interaction.user.id not in ADMIN_IDS: return await interaction.response.send_message("You don't have permissions!", ephemeral=True)
@@ -242,8 +234,7 @@ async def help_command(interaction: discord.Interaction):
     embed.add_field(name="🛠️ Admin Setup Commands", value="`/set_goodbye_channel` - Set goodbye channel\n`/set_goodbye_gif` - Set goodbye GIF URL\n`/set_goodbye_message` - Set goodbye message\n`/set_goodbye_title` - Set goodbye title\n`/set_welcome_channel` - Set welcome channel\n`/set_welcome_gif` - Set welcome GIF URL\n`/set_welcome_message` - Set welcome message\n`/set_welcome_title` - Set welcome title\n`/set_confessions_channel` - Set confessions channel\n`/say` - Make the bot repeat text\n`/ticket` - Create support ticket panel\n`/setuproles` - Create 20 standard roles\n`/setupchannels` - Create 35 organized channels", inline=False)
     embed.add_field(name="🎮 Fun & Unique Commands", value="`/8ball` - Ask the magic ball\n`/coinflip` - Flip a coin\n`/fact` - Random fact 💡\n`/hack` - Fake hack attack 💻\n`/match` - 1v1 Match view\n`/password` - Generate password 🔒\n`/ping` - Check latency 🏓\n`/poll` - Reaction poll\n`/quote` - Epic statement\n`/roast` - Roast user 🔥\n`/roll` - Roll dice\n`/rps` - Rock, Paper, Scissors\n`/serverinfo` - Server info 📊\n`/settings` - Server configuration\n`/ship` - Love calculator ❤️\n`/userinfo` - User details\n`/conspiracy` - Conspiracy theory\n`/globalweather` - Absurd weather\n`/worldexcuse` - Global excuse\n`/globalroast` - Global chat roast\n`/mysterybox` - Mystery box prize", inline=False)
     await interaction.response.send_message(embed=embed, ephemeral=True)
-
-@bot.tree.command(name="match", description="Create a 1v1 match between two players")
+    @bot.tree.command(name="match", description="Create a 1v1 match between two players")
 @app_commands.describe(player1="First player", player2="Second player")
 async def match(interaction: discord.Interaction, player1: discord.Member, player2: discord.Member):
     embed = discord.Embed(title="⚔️ 1v1 MATCH", description=f"{player1.mention} VS {player2.mention}", color=discord.Color.gold())
@@ -403,9 +394,6 @@ async def userinfo(interaction: discord.Interaction, member: discord.Member = No
     embed.add_field(name="Account Created", value=c_date, inline=True)
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
-# ==========================================
-# 5. CONFESSIONS & TICKET SYSTEMS
-# ==========================================
 class ConfessionModal(discord.ui.Modal, title="Send an Anonymous Confession"):
     confession_text = discord.ui.TextInput(
         label="Your confession",
@@ -471,9 +459,6 @@ async def ticket(interaction: discord.Interaction):
     await interaction.channel.send(embed=embed, view=TicketView())
     await interaction.response.send_message("✅ Ticket panel created successfully!", ephemeral=True)
 
-# ==========================================
-# 6. SETUP UTILS & GLOBAL RANDOM COMMANDS
-# ==========================================
 @bot.command(name="setuproles")
 @commands.has_permissions(manage_roles=True)
 async def setuproles(ctx):
@@ -565,9 +550,5 @@ async def mysterybox(ctx):
     ]
     await ctx.send(f"📦 {ctx.author.mention} opened the mystery box and found: **{random.choice(prizes)}**")
 
-# ==========================================
-# 7. BOT RUN
-# ==========================================
 bot.run(os.environ['TOKEN'])
-
-```
+    
