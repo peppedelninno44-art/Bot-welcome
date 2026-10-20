@@ -557,37 +557,35 @@ async def on_message(message: discord.Message):
             return
 
         async with message.channel.typing():
-            try:
-                api_key = os.environ.get("GROQ_API_KEY") or os.environ.get("GEMINI_API_KEY")
-                if not api_key:
-                    await message.channel.send(f"{message.author.mention}, API key missing in Render settings!")
-                    return
+                    try:
+            api_key = os.environ.get("GROQ_API_KEY")
+            if not api_key:
+                await message.channel.send(f"{message.author.mention} Manca la chiave GROQ_API_KEY su Render!")
+                return
 
-                url = "https://api.groq.com/openai/v1/chat/completions"
-                headers = {
-                    "Authorization": f"Bearer {api_key.strip()}",
-                    "Content-Type": "application/json",
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-                }
-                data = {
-                    "model": "llama-3.3-70b-versatile",
-                    "messages": [
-                        {"role": "system", "content": "You are a helpful Discord bot assistant. Respond concisely in English."},
-                        {"role": "user", "content": user_prompt}
-                    ]
-                }
-                
-                req = urllib.request.Request(url, data=json.dumps(data).encode('utf-8'), headers=headers)
-                with urllib.request.urlopen(req) as response:
-                    res_data = json.loads(response.read().decode('utf-8'))
-                    ai_text = res_data['choices'][0]['message']['content']
-                    await message.channel.send(f"{message.author.mention}, {ai_text}")
+            url = "https://api.groq.com/openai/v1/chat/completions"
+            headers = {
+                "Authorization": f"Bearer {api_key.strip()}",
+                "Content-Type": "application/json",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+            }
+            data = {
+                "model": "llama-3.3-70b-versatile",
+                "messages": [
+                    {"role": "system", "content": "Sei un assistente utile su Discord."},
+                    {"role": "user", "content": user_prompt}
+                ]
+            }
 
-            except Exception as e:
-                import traceback
-                traceback.print_exc()
-                await message.channel.send(f"{message.author.mention}, Sorry, I couldn't process that request right now!")
+            req = urllib.request.Request(url, data=json.dumps(data).encode('utf-8'), headers=headers)
+            with urllib.request.urlopen(req) as response:
+                res_data = json.loads(response.read().decode('utf-8'))
+                ai_text = res_data['choices'][0]['message']['content']
+                await message.channel.send(f"{message.author.mention} {ai_text}")
 
+        except Exception as e:
+            await message.channel.send(f"{message.author.mention} Errore durante la richiesta: {e}")
+                        
     await bot.process_commands(message)
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
