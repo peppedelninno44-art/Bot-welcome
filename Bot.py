@@ -589,8 +589,7 @@ async def on_message(message: discord.Message):
                 await message.channel.send(f"{message.author.mention}, Sorry, I couldn't process that request right now!")
 
     await bot.process_commands(message)
-    
-   import threading
+import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 class SimpleHandler(BaseHTTPRequestHandler):
