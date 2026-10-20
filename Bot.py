@@ -542,47 +542,113 @@ async def ticket(interaction: discord.Interaction):
     await interaction.response.send_message("✅ Ticket panel created successfully!", ephemeral=True)
 
 # ==========================================
-# CHAT AI RESPONSE ON MENTION (@Bot) - GROQ
-# ==========================================
-@bot.event
-async def on_message(message: discord.Message):
-    if message.author.bot:
-        return
+# ==================== GLOBAL SETUP & RANDOM COMMANDS ====================
 
-    if bot.user in message.mentions:
-        user_prompt = message.content.replace(f'<@{bot.user.id}>', '').replace(f'<@!{bot.user.id}>', '').strip()
-        
-        if not user_prompt:
-            await message.channel.send(f"{message.author.mention}, yes? How can I help you?")
-            return
+# 1. CREATE 20 COMMUNITY ROLES
+@bot.command(name="setuproles")
+@commands.has_permissions(manage_roles=True)
+async def setuproles(ctx):
+    await ctx.send("⚙️ Creating 20 community roles... Please wait!")
+    
+    roles_to_create = [
+        "👑 Owner", "🛡️ Administrator", "🔨 Moderator", "🤖 Bot", 
+        "⭐ VIP Member", "boost: Nitro Booster", "📢 Announcements", "🎮 Gamer", 
+        "🎨 Artist", "🎵 Musician", "💻 Developer", "💬 Active Chatter", 
+        "🔴 Streamer", "💤 AFK", "🔒 Muted", "🎉 Event Host", 
+        "🟢 Online", "🟡 Away", "🔴 Busy", "👻 Member"
+    ]
+    
+    for role_name in roles_to_create:
+        try:
+            await ctx.guild.create_role(name=role_name)
+        except Exception:
+            pass
+            
+    await ctx.send("✅ Successfully created 20 roles for your community!")
 
-        async with message.channel.typing():
-            api_key = os.environ.get("GROQ_API_KEY")
-            if not api_key:
-                await message.channel.send(f"{message.author.mention} Manca la chiave GROQ_API_KEY su Render!")
-                return
+# 2. CREATE 35 CHANNELS ACROSS CATEGORIES
+@bot.command(name="setupchannels")
+@commands.has_permissions(manage_channels=True)
+async def setupchannels(ctx):
+    await ctx.send("⚙️ Creating 35 channels across organized categories... Please wait!")
+    
+    categories = {
+        "📌 ── INFORMATION ──": ["rules", "announcements", "welcome", "faq", "server-boosts", "roles-info", "partnerships"],
+        "💬 ── COMMUNITY ──": ["general", "lounge", "media-share", "memes", "bot-commands", "suggestions", "confessions", "polls", "counting", "gaw-and-events"],
+        "🎮 ── GAMING ZONE ──": ["gaming-chat", "clips-and-highlights", "LFG-party", "minecraft", "valorant", "league-of-legends", "fortnite"],
+        "🔊 ── VOICE CHATS ──": ["Lounge 1", "Lounge 2", "Gaming Room", "Music Room", "Stream Room", "Quiet Zone"],
+        "🔒 ── STAFF AREA ──": ["staff-chat", "mod-logs", "admin-only", "ticket-logs"]
+    }
+    
+    for cat_name, channels in categories.items():
+        category = await ctx.guild.create_category(cat_name)
+        for channel_name in channels:
+            if "Voice" in cat_name or "ROOM" in cat_name.upper():
+                await ctx.guild.create_voice_channel(channel_name, category=category)
+            else:
+                await ctx.guild.create_text_channel(channel_name, category=category)
+                
+    await ctx.send("✅ Successfully created 35 channels and categories for your global server!")
 
-            url = "https://api.groq.com/openai/v1/chat/completions"
-            headers = {
-                "Authorization": f"Bearer {api_key.strip()}",
-                "Content-Type": "application/json",
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-            }
-            data = {
-                "model": "llama-3.3-70b-versatile",
-                "messages": [
-                    {"role": "system", "content": "Sei un assistente utile su Discord."},
-                    {"role": "user", "content": user_prompt}
-                ]
-            }
+# ==================== 5 RANDOM UNIQUE COMMANDS ====================
 
-            req = urllib.request.Request(url, data=json.dumps(data).encode('utf-8'), headers=headers)
-            with urllib.request.urlopen(req) as response:
-                res_data = json.loads(response.read().decode('utf-8'))
-                ai_text = res_data['choices'][0]['message']['content']
-                await message.channel.send(f"{message.author.mention} {ai_text}")
+# 1. Random Conspiracy Generator
+@bot.command(name="conspiracy")
+async def conspiracy(ctx):
+    theories = [
+        "Pigeons are government drones charging their batteries on power lines.",
+        "Your toaster is secretly streaming your breakfast habits to the cloud.",
+        "Monday mornings are artificially lengthened by time travelers.",
+        "Socks don't disappear in the wash; they turn into Tupperware lids.",
+        "Cats can speak fluent English, they just choose to judge you in silence."
+    ]
+    await ctx.send(f"🕵️‍♂️ **Global Conspiracy Theory:** {random.choice(theories)}")
 
-        await bot.process_commands(message)
+# 2. Global Weather Forecast (Absurd)
+@bot.command(name="globalweather")
+async def globalweather(ctx):
+    weather = [
+        "Raining meatballs over Western Europe 🍝",
+        "Heavy gravity storms reported in sector 7 🪐",
+        "A 100% chance of extreme laziness worldwide 🛏️",
+        "Neon rain clouds forming above major cities 🌆"
+    ]
+    await ctx.send(f"🌍 **World Weather Report:** {random.choice(weather)}")
+
+# 3. Excuses Generator for World Leaders/Gamers
+@bot.command(name="worldexcuse")
+async def worldexcuse(ctx):
+    excuses = [
+        "My internet cable was chewed up by an international space hamster.",
+        "I was busy calculating the exact digits of Pi backwards.",
+        "An alien spaceship blocked my Wi-Fi signal.",
+        "I got stuck in a parallel universe where Mondays don't exist."
+    ]
+    await ctx.send(f"🌐 **Global Excuse:** \"{random.choice(excuses)}\"")
+
+# 4. Instant Roast for Global Chat
+@bot.command(name="globalroast")
+async def globalroast(ctx, member: discord.Member = None):
+    target = member.mention if member else ctx.author.mention
+    roasts = [
+        "has the processing speed of a Windows 95 computer running Crysis.",
+        "brings down the average IQ of the entire international server.",
+        "gets lost using Google Maps inside a straight corridor.",
+        "looks like an NPC whose dialogue was deleted by mistake."
+    ]
+    await ctx.send(f"🔥 {target} {random.choice(roasts)}")
+
+# 5. Mystery Box Game
+@bot.command(name="mysterybox")
+async def mysterybox(ctx):
+    prizes = [
+        "You opened a box full of ancient golden memes! 🪙",
+        "Oh no! It was a box full of angry digital wasps! 🐝",
+        "You found an infinite supply of virtual pizza! 🍕",
+        "The box was completely empty... just like your Monday morning brain. 🧠",
+        "You unlocked absolute cosmic power! (For 5 seconds) ✨"
+    ]
+    await ctx.send(f"📦 {ctx.author.mention} opened the mystery box and found: **{random.choice(prizes)}**")
     
 
 
