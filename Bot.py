@@ -9,24 +9,27 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-# --- KEEP-ALIVE SERVER FOR RENDER ---
+
+# --- SERVER HTTP PER KEEP-ALIVE ---
 class SimpleHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.send_header("Content-type", "text/plain")
         self.end_headers()
         self.wfile.write(b"Bot is running successfully!")
-
     def log_message(self, format, *args):
-        pass  # Disable continuous log spam
+        pass
 
 def run_server():
     port = int(os.environ.get("PORT", 10000))
-    server = HTTPServer(("0.0.0.0", port), SimpleHandler)
+    server = HTTPServer(('0.0.0.0', port), SimpleHandler)
     server.serve_forever()
 
-# Start HTTP server in background thread
-threading.Thread(target=run_server, daemon=True).start()
+# Avvia il server in background
+server_thread = Thread(target=run_server)
+server_thread.daemon = True
+server_thread.start()
+
 
 # --- YOUR BOT CODE STARTS BELOW ---
 
