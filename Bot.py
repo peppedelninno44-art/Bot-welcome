@@ -2,14 +2,19 @@ import json
 import random
 import os
 import threading
-import os
-import threading
+import asyncio
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from threading import Thread
 import discord
 from discord import app_commands
 from discord.ext import commands
 
-
+# --- SERVER HTTP PER KEEP-ALIVE ---
+class SimpleHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-type", "text/plain")
+        self.end_headers()
         self.wfile.write(b"Bot is running successfully!")
     def log_message(self, format, *args):
         pass
@@ -23,6 +28,8 @@ def run_server():
 server_thread = Thread(target=run_server)
 server_thread.daemon = True
 server_thread.start()
+
+# --- YOUR BOT CODE STARTS BELOW ---
 
 
 # --- YOUR BOT CODE STARTS BELOW ---
